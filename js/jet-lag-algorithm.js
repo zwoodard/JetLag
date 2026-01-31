@@ -17,7 +17,7 @@ class JetLagPlanner {
         this.usualBedtime = this.parseTime(config.usualBedtime); // minutes from midnight
         this.usualWaketime = this.parseTime(config.usualWaketime);
         this.flights = config.flights;
-        this.daysBeforeStart = config.daysBeforeStart || 2;
+        this.daysBeforeStart = config.daysBeforeStart !== undefined ? config.daysBeforeStart : 2;
 
         // Constants
         this.MAX_SHIFT_PER_DAY = 1.5; // hours
@@ -214,8 +214,11 @@ class JetLagPlanner {
                         const napStartMins = flightStartMins + napStartOffset;
                         const napEndMins = napStartMins + napDuration;
 
-                        // Only add if nap fits within flight
-                        if (napEndMins < flightEndMins - 30) {
+                        // Check nap fits within flight using duration, not end time
+                        // (napStartOffset + napDuration + 30 min buffer) should be < total flight duration
+                        const napEndsBeforeLanding = (napStartOffset + napDuration + 30) < flightDurationMins;
+
+                        if (napEndsBeforeLanding) {
                             events.push({
                                 type: 'nap',
                                 startTime: napStartMins,
@@ -329,9 +332,10 @@ class JetLagPlanner {
                 }
             }
 
-            // Filter out events that conflict with flights (except the flight itself)
+            // Filter out events that conflict with flights (except flights and in-flight activities)
             const filteredEvents = events.filter(event => {
                 if (event.type === 'flight') return true;
+                if (event.inFlight) return true; // Keep in-flight naps
 
                 // Check if event time conflicts with any flight
                 const eventStart = new Date(currentDate);
