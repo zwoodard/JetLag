@@ -2,6 +2,8 @@
  * JetLag Planner - Main Application
  */
 
+const STORAGE_KEY = 'jetlag-planner-data';
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
 });
@@ -17,17 +19,29 @@ function initializeApp() {
         homeTimezoneSelect.value = detectedTz;
     }
 
-    // Set default datetime for first flight (tomorrow)
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(9, 0, 0, 0);
-
-    // Add first flight
-    addFlight();
+    // Try to load saved data
+    const savedData = loadFromStorage();
+    if (savedData) {
+        restoreSavedData(savedData);
+        showSavedIndicator();
+    } else {
+        // Add first flight with defaults
+        addFlight();
+    }
 
     // Event listeners
-    document.getElementById('add-flight-btn').addEventListener('click', addFlight);
+    document.getElementById('add-flight-btn').addEventListener('click', () => {
+        addFlight();
+        saveToStorage();
+    });
     document.getElementById('generate-btn').addEventListener('click', generatePlan);
+
+    // Auto-save on input changes
+    document.addEventListener('change', (e) => {
+        if (e.target.closest('#profile-section, #flights-section, #generate-section')) {
+            saveToStorage();
+        }
+    });
 
     // Tab switching
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -45,9 +59,89 @@ function initializeApp() {
     }
 }
 
+// ============ Local Storage ============
+
+function saveToStorage() {
+    const data = {
+        homeTimezone: document.getElementById('home-timezone').value,
+        usualBedtime: document.getElementById('usual-bedtime').value,
+        usualWaketime: document.getElementById('usual-waketime').value,
+        daysBeforeStart: document.getElementById('plan-start').value,
+        flights: collectFlightData(),
+        savedAt: new Date().toISOString(),
+    };
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+        console.warn('Could not save to localStorage:', e);
+    }
+}
+
+function loadFromStorage() {
+    try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        return data ? JSON.parse(data) : null;
+    } catch (e) {
+        console.warn('Could not load from localStorage:', e);
+        return null;
+    }
+}
+
+function restoreSavedData(data) {
+    // Restore profile
+    if (data.homeTimezone) {
+        document.getElementById('home-timezone').value = data.homeTimezone;
+    }
+    if (data.usualBedtime) {
+        document.getElementById('usual-bedtime').value = data.usualBedtime;
+    }
+    if (data.usualWaketime) {
+        document.getElementById('usual-waketime').value = data.usualWaketime;
+    }
+    if (data.daysBeforeStart) {
+        document.getElementById('plan-start').value = data.daysBeforeStart;
+    }
+
+    // Restore flights
+    if (data.flights && data.flights.length > 0) {
+        data.flights.forEach((flight, index) => {
+            addFlight(flight);
+        });
+    } else {
+        addFlight();
+    }
+}
+
+function showSavedIndicator() {
+    const header = document.querySelector('#flights-section h2');
+    if (header && !header.querySelector('.saved-indicator')) {
+        const indicator = document.createElement('span');
+        indicator.className = 'saved-indicator';
+        indicator.textContent = 'Restored';
+        header.appendChild(indicator);
+
+        // Fade out after 3 seconds
+        setTimeout(() => {
+            indicator.style.transition = 'opacity 0.5s';
+            indicator.style.opacity = '0';
+            setTimeout(() => indicator.remove(), 500);
+        }, 3000);
+    }
+}
+
+function clearStorage() {
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+        console.warn('Could not clear localStorage:', e);
+    }
+}
+
+// ============ Flight Management ============
+
 let flightCount = 0;
 
-function addFlight() {
+function addFlight(flightData = null) {
     const template = document.getElementById('flight-template');
     const container = document.getElementById('flights-container');
 
@@ -71,16 +165,26 @@ function addFlight() {
         });
     });
 
-    // Set default date/time
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(9, 0, 0, 0);
+    // Set values from saved data or defaults
+    if (flightData) {
+        card.querySelector('.departure-airport').value = flightData.departureAirport || '';
+        card.querySelector('.arrival-airport').value = flightData.arrivalAirport || '';
+        card.querySelector('.departure-datetime').value = flightData.departureDateTime || '';
+        card.querySelector('.departure-timezone').value = flightData.departureTimezone || '';
+        card.querySelector('.arrival-datetime').value = flightData.arrivalDateTime || '';
+        card.querySelector('.arrival-timezone').value = flightData.arrivalTimezone || '';
+    } else {
+        // Set default date/time
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(9, 0, 0, 0);
 
-    const arrivalTime = new Date(tomorrow);
-    arrivalTime.setHours(arrivalTime.getHours() + 8); // 8 hour flight default
+        const arrivalTime = new Date(tomorrow);
+        arrivalTime.setHours(arrivalTime.getHours() + 8);
 
-    card.querySelector('.departure-datetime').value = formatDateTimeLocal(tomorrow);
-    card.querySelector('.arrival-datetime').value = formatDateTimeLocal(arrivalTime);
+        card.querySelector('.departure-datetime').value = formatDateTimeLocal(tomorrow);
+        card.querySelector('.arrival-datetime').value = formatDateTimeLocal(arrivalTime);
+    }
 
     // Auto-fill timezone from airport code
     const departureAirport = card.querySelector('.departure-airport');
@@ -90,18 +194,25 @@ function addFlight() {
 
     departureAirport.addEventListener('blur', () => {
         const tz = getTimezoneFromAirport(departureAirport.value);
-        if (tz) departureTz.value = tz;
+        if (tz) {
+            departureTz.value = tz;
+            saveToStorage();
+        }
     });
 
     arrivalAirport.addEventListener('blur', () => {
         const tz = getTimezoneFromAirport(arrivalAirport.value);
-        if (tz) arrivalTz.value = tz;
+        if (tz) {
+            arrivalTz.value = tz;
+            saveToStorage();
+        }
     });
 
     // Remove flight button
     card.querySelector('.remove-flight').addEventListener('click', () => {
         card.remove();
         renumberFlights();
+        saveToStorage();
     });
 
     container.appendChild(flightCard);
@@ -165,6 +276,8 @@ function validateFlights(flights) {
     return errors;
 }
 
+// ============ Plan Generation ============
+
 function generatePlan() {
     const flights = collectFlightData();
 
@@ -174,6 +287,9 @@ function generatePlan() {
         alert('Please fix the following:\n\n' + errors.join('\n'));
         return;
     }
+
+    // Save before generating
+    saveToStorage();
 
     // Collect user profile
     const config = {
@@ -203,6 +319,27 @@ function displayPlan(plan) {
     // Scroll to results
     resultsSection.scrollIntoView({ behavior: 'smooth' });
 
+    // Update header with regenerate button
+    const resultsCard = resultsSection;
+    let header = resultsCard.querySelector('.results-header');
+    if (!header) {
+        const h2 = resultsCard.querySelector('h2');
+        header = document.createElement('div');
+        header.className = 'results-header';
+        header.innerHTML = `<h2>${h2.innerHTML}</h2>`;
+        h2.replaceWith(header);
+    }
+
+    // Add regenerate button if not present
+    if (!header.querySelector('.btn-ghost')) {
+        const regenBtn = document.createElement('button');
+        regenBtn.type = 'button';
+        regenBtn.className = 'btn btn-ghost btn-small';
+        regenBtn.textContent = 'Regenerate';
+        regenBtn.addEventListener('click', generatePlan);
+        header.appendChild(regenBtn);
+    }
+
     // Summary
     const summaryHtml = `
         <h3>Trip Summary</h3>
@@ -220,7 +357,7 @@ function displayPlan(plan) {
                 <div class="stat-label">Days to Adjust</div>
             </div>
             <div class="stat">
-                <div class="stat-value">${plan.summary.direction === 'east' ? '→' : '←'}</div>
+                <div class="stat-value">${plan.summary.direction === 'east' ? '&#8599;' : '&#8598;'}</div>
                 <div class="stat-label">${plan.summary.direction === 'east' ? 'Eastward' : 'Westward'}</div>
             </div>
         </div>
@@ -234,6 +371,8 @@ function displayPlan(plan) {
     renderDailyView(plan.schedule);
 }
 
+// ============ Timeline Rendering ============
+
 function renderTimeline(schedule) {
     const container = document.getElementById('timeline-view');
 
@@ -244,7 +383,7 @@ function renderTimeline(schedule) {
             <div class="legend-item"><div class="legend-color" style="background: var(--color-light-avoid); border: 2px dashed var(--color-text-muted)"></div> Avoid Light</div>
             <div class="legend-item"><div class="legend-color" style="background: var(--color-caffeine)"></div> Caffeine OK</div>
             <div class="legend-item"><div class="legend-color" style="background: var(--color-melatonin)"></div> Melatonin</div>
-            <div class="legend-item"><div class="legend-color" style="background: var(--color-nap)"></div> Optional Nap</div>
+            <div class="legend-item"><div class="legend-color" style="background: var(--color-nap)"></div> Nap</div>
             <div class="legend-item"><div class="legend-color" style="background: var(--color-flight)"></div> Flight</div>
         </div>
     `;
@@ -267,6 +406,9 @@ function renderTimeline(schedule) {
                 <div class="timeline-bar">
                     ${renderTimelineEvents(day.events)}
                 </div>
+                <div class="timeline-vertical">
+                    ${renderVerticalTimeline(day.events)}
+                </div>
             </div>
         `;
     });
@@ -283,13 +425,12 @@ function renderTimelineEvents(events) {
 
         // Handle overnight events
         if (event.type === 'sleep' && endMins < startMins) {
-            // Split into two parts: evening and morning
-            // Evening part (startMins to midnight)
+            // Evening part
             const eveningWidth = ((1440 - startMins) / 1440) * 100;
             const eveningLeft = (startMins / 1440) * 100;
             html += `<div class="timeline-event ${event.type}" style="left: ${eveningLeft}%; width: ${eveningWidth}%;" title="${event.description}"></div>`;
 
-            // Morning part (midnight to endMins)
+            // Morning part
             const morningWidth = (endMins / 1440) * 100;
             html += `<div class="timeline-event ${event.type}" style="left: 0%; width: ${morningWidth}%;" title="${event.description}"></div>`;
             return;
@@ -299,7 +440,37 @@ function renderTimelineEvents(events) {
         const width = Math.max(((endMins - startMins) / 1440) * 100, 1.5);
 
         const label = getEventLabel(event.type);
-        html += `<div class="timeline-event ${event.type}" style="left: ${left}%; width: ${width}%;" title="${event.description}">${width > 5 ? label : ''}</div>`;
+        html += `<div class="timeline-event ${event.type}" style="left: ${left}%; width: ${width}%;" title="${event.description}">${width > 6 ? label : ''}</div>`;
+    });
+
+    return html;
+}
+
+function renderVerticalTimeline(events) {
+    // Sort events by start time
+    const sortedEvents = [...events].sort((a, b) => {
+        const aTime = ((a.startTime % 1440) + 1440) % 1440;
+        const bTime = ((b.startTime % 1440) + 1440) % 1440;
+        return aTime - bTime;
+    });
+
+    let html = '';
+
+    sortedEvents.forEach(event => {
+        const startTime = formatTimeDisplay(event.startTime);
+        const endTime = formatTimeDisplay(event.endTime);
+        const timeRange = event.type === 'melatonin' ? startTime : `${startTime} - ${endTime}`;
+        const label = getEventLabel(event.type);
+
+        html += `
+            <div class="timeline-vertical-event ${event.type}">
+                <div class="timeline-vertical-time">${timeRange}</div>
+                <div>
+                    <div class="timeline-vertical-label">${label}</div>
+                    <div class="timeline-vertical-desc">${event.description}</div>
+                </div>
+            </div>
+        `;
     });
 
     return html;
@@ -308,15 +479,17 @@ function renderTimelineEvents(events) {
 function getEventLabel(type) {
     const labels = {
         'sleep': 'Sleep',
-        'light-seek': 'Light',
-        'light-avoid': 'Dim',
+        'light-seek': 'Seek Light',
+        'light-avoid': 'Avoid Light',
         'caffeine': 'Caffeine OK',
-        'melatonin': 'Mel',
+        'melatonin': 'Melatonin',
         'nap': 'Nap',
         'flight': 'Flight',
     };
     return labels[type] || type;
 }
+
+// ============ Daily View Rendering ============
 
 function renderDailyView(schedule) {
     const container = document.getElementById('daily-view');
@@ -334,7 +507,7 @@ function renderDailyView(schedule) {
                 <div class="daily-header">${day.dayLabel} - ${dateStr}</div>
         `;
 
-        // Sort events by start time for display
+        // Sort events by start time
         const sortedEvents = [...day.events].sort((a, b) => {
             const aTime = ((a.startTime % 1440) + 1440) % 1440;
             const bTime = ((b.startTime % 1440) + 1440) % 1440;
@@ -349,7 +522,7 @@ function renderDailyView(schedule) {
                 : `${startTime} - ${endTime}`;
 
             html += `
-                <div class="daily-item">
+                <div class="daily-item ${event.type}">
                     <div class="daily-time">${timeRange}</div>
                     <div class="daily-activity">
                         <span class="activity-type ${event.type}">${getEventLabel(event.type)}</span>
@@ -375,12 +548,10 @@ function formatTimeDisplay(minutes) {
 }
 
 function switchTab(tabName) {
-    // Update tab buttons
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tab === tabName);
     });
 
-    // Update tab content
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.toggle('active', content.id === `${tabName}-view`);
     });
