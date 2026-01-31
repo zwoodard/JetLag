@@ -194,13 +194,37 @@ class JetLagPlanner {
             flightBlocks.forEach(fb => {
                 const flightDate = new Date(fb.start);
                 if (flightDate.toDateString() === currentDate.toDateString()) {
+                    const flightStartMins = fb.start.getHours() * 60 + fb.start.getMinutes();
+                    const flightEndMins = fb.end.getHours() * 60 + fb.end.getMinutes();
+                    const flightDurationMins = (fb.end - fb.start) / (1000 * 60);
+
                     events.push({
                         type: 'flight',
-                        startTime: fb.start.getHours() * 60 + fb.start.getMinutes(),
-                        endTime: fb.end.getHours() * 60 + fb.end.getMinutes(),
+                        startTime: flightStartMins,
+                        endTime: flightEndMins,
                         description: `Flight: ${fb.flight.departureAirport || 'Departure'} → ${fb.flight.arrivalAirport || 'Arrival'}`,
                         flight: fb.flight,
                     });
+
+                    // Add in-flight nap for longer flights (4+ hours)
+                    if (flightDurationMins >= 240) {
+                        // Nap about 1-2 hours into the flight, for 20-90 mins depending on flight length
+                        const napStartOffset = 60; // 1 hour after takeoff
+                        const napDuration = Math.min(90, Math.floor(flightDurationMins / 4)); // Up to 90 mins
+                        const napStartMins = flightStartMins + napStartOffset;
+                        const napEndMins = napStartMins + napDuration;
+
+                        // Only add if nap fits within flight
+                        if (napEndMins < flightEndMins - 30) {
+                            events.push({
+                                type: 'nap',
+                                startTime: napStartMins,
+                                endTime: napEndMins,
+                                description: `In-flight nap (${napDuration} mins) - helps adjust to destination time`,
+                                inFlight: true,
+                            });
+                        }
+                    }
                 }
             });
 
