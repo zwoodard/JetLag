@@ -36,11 +36,25 @@ function initializeApp() {
     });
     document.getElementById('generate-btn').addEventListener('click', generatePlan);
 
-    // Auto-save on input changes
+    // Auto-save on input changes (change event for selects/datetime)
     document.addEventListener('change', (e) => {
         if (e.target.closest('#profile-section, #flights-section, #generate-section')) {
             saveToStorage();
         }
+    });
+
+    // Also save on input event for text fields (fires on every keystroke)
+    document.addEventListener('input', (e) => {
+        if (e.target.closest('#profile-section, #flights-section, #generate-section')) {
+            // Debounce to avoid excessive saves
+            clearTimeout(window.saveTimeout);
+            window.saveTimeout = setTimeout(saveToStorage, 500);
+        }
+    });
+
+    // Save before page unload to catch any unsaved changes
+    window.addEventListener('beforeunload', () => {
+        saveToStorage();
     });
 
     // Tab switching
@@ -72,17 +86,24 @@ function saveToStorage() {
     };
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        console.log('[JetLag] Saved to localStorage:', data.flights.length, 'flights');
     } catch (e) {
-        console.warn('Could not save to localStorage:', e);
+        console.warn('[JetLag] Could not save to localStorage:', e);
     }
 }
 
 function loadFromStorage() {
     try {
         const data = localStorage.getItem(STORAGE_KEY);
-        return data ? JSON.parse(data) : null;
+        if (data) {
+            const parsed = JSON.parse(data);
+            console.log('[JetLag] Loaded from localStorage:', parsed.flights?.length, 'flights, saved at:', parsed.savedAt);
+            return parsed;
+        }
+        console.log('[JetLag] No saved data found in localStorage');
+        return null;
     } catch (e) {
-        console.warn('Could not load from localStorage:', e);
+        console.warn('[JetLag] Could not load from localStorage:', e);
         return null;
     }
 }
