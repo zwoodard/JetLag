@@ -1,0 +1,20 @@
+{
+  "name": "jetlag",
+  "version": "1.0.0",
+  "description": "A web app to help travelers beat jet lag by planning their sleep, caffeine intake, light exposure, and melatonin around their flight schedule.",
+  "main": "sw.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:37814/git/zwoodard/JetLag"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.58.1",
+    "playwright": "^1.58.1"
+  }
+}
