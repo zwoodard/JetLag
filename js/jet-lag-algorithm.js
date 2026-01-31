@@ -47,6 +47,44 @@ class JetLagPlanner {
     }
 
     /**
+     * Calculate true flight duration by converting local times to UTC.
+     *
+     * The datetime-local input gives us "wall clock" time at departure/arrival,
+     * but without timezone info. We need to convert both to UTC to get the
+     * actual elapsed time.
+     *
+     * Example: HNL 9:00 AM (UTC-10) to TYO 5:00 PM next day (UTC+9)
+     *   - Departure UTC: 9:00 + 10 = 19:00 on Jan 31
+     *   - Arrival UTC: 17:00 - 9 = 08:00 on Feb 1
+     *   - Duration: 13 hours (not 32 hours!)
+     */
+    calculateFlightDuration(flight) {
+        const depOffset = getTimezoneOffset(flight.departureTimezone);
+        const arrOffset = getTimezoneOffset(flight.arrivalTimezone);
+
+        if (depOffset === null || arrOffset === null) {
+            // Fallback to naive calculation if timezones unknown
+            const start = new Date(flight.departureDateTime);
+            const end = new Date(flight.arrivalDateTime);
+            return (end - start) / (1000 * 60);
+        }
+
+        // Parse the local times
+        const depLocal = new Date(flight.departureDateTime);
+        const arrLocal = new Date(flight.arrivalDateTime);
+
+        // Convert to UTC by subtracting the timezone offset
+        // (offset is in hours, positive = east of UTC)
+        const depUTC = depLocal.getTime() - (depOffset * 60 * 60 * 1000);
+        const arrUTC = arrLocal.getTime() - (arrOffset * 60 * 60 * 1000);
+
+        // Duration in minutes
+        const durationMins = (arrUTC - depUTC) / (1000 * 60);
+
+        return Math.max(0, durationMins);
+    }
+
+    /**
      * Calculate optimal in-flight sleep based on flight duration, arrival time, and direction.
      *
      * Scientific rationale:
@@ -241,10 +279,12 @@ class JetLagPlanner {
         };
 
         // Create flight lookup for blocking times
+        // Include pre-calculated duration using proper timezone conversion
         const flightBlocks = flights.map(f => ({
             start: new Date(f.departureDateTime),
             end: new Date(f.arrivalDateTime),
             flight: f,
+            durationMins: this.calculateFlightDuration(f),
         }));
 
         // Check if a time range conflicts with any flight
@@ -289,7 +329,8 @@ class JetLagPlanner {
                 if (flightDate.toDateString() === currentDate.toDateString()) {
                     const flightStartMins = fb.start.getHours() * 60 + fb.start.getMinutes();
                     const flightEndMins = fb.end.getHours() * 60 + fb.end.getMinutes();
-                    const flightDurationMins = (fb.end - fb.start) / (1000 * 60);
+                    // Use pre-calculated duration with proper timezone handling
+                    const flightDurationMins = fb.durationMins;
 
                     events.push({
                         type: 'flight',

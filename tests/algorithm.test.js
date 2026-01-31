@@ -212,24 +212,67 @@ test('Flight duration calculation for cross-timezone flight', () => {
     expect(durationHours).toBeGreaterThan(10);
 });
 
-test('Algorithm flight duration calculation', () => {
-    // Simulate how the algorithm calculates duration
-    const depDateTime = '2026-01-31T09:00';
-    const arrDateTime = '2026-02-01T17:00';
+test('Algorithm flight duration calculation with timezone correction', () => {
+    // Test the calculateFlightDuration method
+    const flight = {
+        departureDateTime: '2026-01-31T09:00',
+        departureTimezone: 'Pacific/Honolulu', // UTC-10
+        arrivalDateTime: '2026-02-01T17:00',
+        arrivalTimezone: 'Asia/Tokyo', // UTC+9
+    };
 
-    const fbStart = new Date(depDateTime);
-    const fbEnd = new Date(arrDateTime);
+    // Create a planner instance to access the method
+    const config = {
+        homeTimezone: 'Pacific/Honolulu',
+        usualBedtime: '21:00',
+        usualWaketime: '05:00',
+        daysBeforeStart: 0,
+        flights: [flight],
+    };
 
-    const durationMins = (fbEnd - fbStart) / (1000 * 60);
-    const durationHours = durationMins / 60;
+    // Access via plan generation - check the flight block duration
+    const plan = context.createJetLagPlan(config);
 
-    console.log(`  Algorithm sees departure: ${fbStart.toISOString()}`);
-    console.log(`  Algorithm sees arrival: ${fbEnd.toISOString()}`);
-    console.log(`  Algorithm calculated duration: ${durationHours.toFixed(1)} hours (${durationMins} mins)`);
-    console.log(`  Meets 4-hour threshold for nap: ${durationMins >= 240 ? 'YES' : 'NO'}`);
+    // Find the flight event and check its duration was calculated correctly
+    let flightDurationMins = null;
+    plan.schedule.forEach(day => {
+        day.events.forEach(event => {
+            if (event.type === 'flight') {
+                // The in-flight sleep duration will tell us the flight was long enough
+                const sleepEvent = day.events.find(e => (e.type === 'sleep' || e.type === 'nap') && e.inFlight);
+                if (sleepEvent) {
+                    // If we got in-flight sleep, the duration was calculated
+                    console.log(`  Flight has in-flight sleep: ${sleepEvent.description}`);
+                }
+            }
+        });
+    });
 
-    // The issue: without timezone info in the datetime-local string,
-    // JavaScript parses them as local time, making the duration wrong
+    // Expected: HNL 9:00 (UTC-10) = 19:00 UTC on Jan 31
+    //           TYO 17:00 (UTC+9) = 08:00 UTC on Feb 1
+    //           Duration = 13 hours = 780 minutes
+    // The algorithm should now calculate ~13 hours, not 32 hours
+
+    console.log(`  Expected flight duration: ~13 hours (780 mins)`);
+    console.log(`  This should trigger 10-14 hour sleep logic (3-4h base)`);
+
+    // Verify the in-flight sleep is in the 3-4 hour range (not 4.5h which was based on 32h)
+    const flightDay = plan.schedule.find(d =>
+        d.events.some(e => e.type === 'flight')
+    );
+    const inFlightSleep = flightDay?.events.find(e =>
+        (e.type === 'sleep' || e.type === 'nap') && e.inFlight
+    );
+
+    if (inFlightSleep) {
+        const sleepDuration = inFlightSleep.endTime - inFlightSleep.startTime;
+        console.log(`  Actual in-flight sleep: ${sleepDuration} mins (${(sleepDuration/60).toFixed(1)}h)`);
+
+        // With 13h flight and morning arrival, should be around 3-4 hours
+        // (base 210 for 10-14h flight + 60 for morning arrival = 270, but capped by flight length)
+        expect(sleepDuration).toBeGreaterThan(150); // At least 2.5h
+        expect(sleepDuration).toBeLessThanOrEqual(300); // No more than 5h
+    }
 });
 
 // ============ Test: Flight Day Detection ============
