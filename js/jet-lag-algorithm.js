@@ -46,6 +46,99 @@ class JetLagPlanner {
         return duration;
     }
 
+    /**
+     * Calculate optimal in-flight sleep based on flight duration, arrival time, and direction.
+     *
+     * Scientific rationale:
+     * - Short flights (4-6h): 90-min nap (one sleep cycle) to avoid deep sleep inertia
+     * - Medium flights (6-10h): 2-3 hours of sleep, especially if arriving in morning
+     * - Long flights (10-14h): 3-4 hours of sleep, timed to align with destination night
+     * - Ultra-long flights (14h+): Up to 5-6 hours, essentially a full sleep period
+     *
+     * Arrival time considerations:
+     * - Morning arrival: Sleep more on plane (you'll need to stay awake all day)
+     * - Evening arrival: Sleep less on plane (you can sleep soon after landing)
+     *
+     * Direction considerations:
+     * - Eastward: Pre-arrival sleep is more critical (you're losing hours)
+     * - Westward: Can get away with less sleep (you're gaining hours)
+     */
+    calculateInFlightSleep(params) {
+        const { flightDurationMins, arrivalTime, direction, arrivalOffset, departureOffset } = params;
+
+        // Get arrival hour in local destination time
+        const arrivalHour = arrivalTime.getHours();
+
+        // Determine if arriving in morning (need to stay awake) vs evening (can sleep soon)
+        const isMorningArrival = arrivalHour >= 5 && arrivalHour <= 14;
+        const isEveningArrival = arrivalHour >= 18 || arrivalHour <= 4;
+
+        // Base sleep duration on flight length
+        let baseDuration;
+        let startOffset = 60; // Default: start 1 hour after takeoff
+
+        if (flightDurationMins < 360) {
+            // 4-6 hours: single sleep cycle
+            baseDuration = 90;
+        } else if (flightDurationMins < 600) {
+            // 6-10 hours: 2-3 hours
+            baseDuration = 150;
+            startOffset = 90; // Start a bit later
+        } else if (flightDurationMins < 840) {
+            // 10-14 hours: 3-4 hours
+            baseDuration = 210;
+            startOffset = 120;
+        } else {
+            // 14+ hours: 4-5 hours (can do more if needed)
+            baseDuration = 270;
+            startOffset = 120;
+        }
+
+        // Adjust for arrival time
+        if (isMorningArrival) {
+            // Arriving in morning = need to stay awake all day
+            // Sleep MORE on the plane (add 30-60 mins)
+            baseDuration = Math.min(baseDuration + 60, flightDurationMins - startOffset - 60);
+        } else if (isEveningArrival) {
+            // Arriving in evening = can sleep soon after landing
+            // Sleep LESS on the plane to build sleep pressure
+            baseDuration = Math.max(90, baseDuration - 30);
+        }
+
+        // Adjust for direction
+        if (direction === 'east') {
+            // Eastward travel: more important to arrive rested
+            // Slight increase (but already factored into morning arrival logic)
+            baseDuration = Math.min(baseDuration + 15, flightDurationMins - startOffset - 60);
+        }
+
+        // Ensure we don't exceed what fits in the flight
+        const maxSleepDuration = flightDurationMins - startOffset - 45; // 45 min buffer before landing
+        const finalDuration = Math.min(baseDuration, maxSleepDuration);
+
+        // Build description
+        let description;
+        const hours = Math.floor(finalDuration / 60);
+        const mins = finalDuration % 60;
+        const timeStr = hours > 0
+            ? (mins > 0 ? `${hours}h ${mins}m` : `${hours}h`)
+            : `${mins} mins`;
+
+        if (finalDuration >= 180) {
+            description = `In-flight sleep (${timeStr}) - ${isMorningArrival ? 'rest up before a full day ahead' : 'helps shift to destination time'}`;
+        } else if (finalDuration >= 120) {
+            description = `In-flight rest (${timeStr}) - ${isMorningArrival ? 'banking sleep for morning arrival' : 'helps adjust to destination time'}`;
+        } else {
+            description = `In-flight nap (${timeStr}) - one sleep cycle to refresh`;
+        }
+
+        return {
+            duration: Math.max(0, Math.round(finalDuration)),
+            startOffset,
+            description,
+        };
+    }
+
     generatePlan() {
         if (this.flights.length === 0) {
             return { error: 'No flights provided' };
@@ -206,26 +299,34 @@ class JetLagPlanner {
                         flight: fb.flight,
                     });
 
-                    // Add in-flight nap for longer flights (4+ hours)
+                    // Add in-flight sleep for longer flights (4+ hours)
+                    // Sleep duration is based on flight length, arrival time, and direction
                     if (flightDurationMins >= 240) {
-                        // Nap about 1-2 hours into the flight, for 20-90 mins depending on flight length
-                        const napStartOffset = 60; // 1 hour after takeoff
-                        const napDuration = Math.min(90, Math.floor(flightDurationMins / 4)); // Up to 90 mins
-                        const napStartMins = flightStartMins + napStartOffset;
-                        const napEndMins = napStartMins + napDuration;
+                        const sleepParams = this.calculateInFlightSleep({
+                            flightDurationMins,
+                            arrivalTime: fb.end,
+                            direction,
+                            arrivalOffset,
+                            departureOffset,
+                        });
 
-                        // Check nap fits within flight using duration, not end time
-                        // (napStartOffset + napDuration + 30 min buffer) should be < total flight duration
-                        const napEndsBeforeLanding = (napStartOffset + napDuration + 30) < flightDurationMins;
+                        if (sleepParams.duration > 0) {
+                            const sleepStartMins = flightStartMins + sleepParams.startOffset;
+                            const sleepEndMins = sleepStartMins + sleepParams.duration;
 
-                        if (napEndsBeforeLanding) {
-                            events.push({
-                                type: 'nap',
-                                startTime: napStartMins,
-                                endTime: napEndMins,
-                                description: `In-flight nap (${napDuration} mins) - helps adjust to destination time`,
-                                inFlight: true,
-                            });
+                            // Verify sleep fits within flight
+                            const sleepEndsBeforeLanding = (sleepParams.startOffset + sleepParams.duration + 30) < flightDurationMins;
+
+                            if (sleepEndsBeforeLanding) {
+                                const isLongSleep = sleepParams.duration >= 120;
+                                events.push({
+                                    type: isLongSleep ? 'sleep' : 'nap',
+                                    startTime: sleepStartMins,
+                                    endTime: sleepEndMins,
+                                    description: sleepParams.description,
+                                    inFlight: true,
+                                });
+                            }
                         }
                     }
                 }

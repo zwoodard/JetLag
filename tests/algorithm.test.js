@@ -145,7 +145,7 @@ test('daysBeforeStart=2 should show 2 days before departure', () => {
 // ============ Test: In-Flight Naps ============
 console.log('\n--- In-Flight Naps ---\n');
 
-test('Long flight (HNL-TYO, ~9 hours) should have in-flight nap', () => {
+test('Long flight (HNL-TYO, ~9 hours) should have in-flight sleep', () => {
     const config = {
         homeTimezone: 'Pacific/Honolulu',
         usualBedtime: '21:00',
@@ -182,10 +182,15 @@ test('Long flight (HNL-TYO, ~9 hours) should have in-flight nap', () => {
         console.log(`    - ${e.type}: ${e.startTime}-${e.endTime} (${e.description})`);
     });
 
-    const napEvent = flightEvents.find(e => e.type === 'nap' && e.inFlight);
-    console.log(`  In-flight nap found: ${napEvent ? 'YES' : 'NO'}`);
+    // In-flight sleep can be 'nap' (short) or 'sleep' (longer, 2+ hours)
+    const inFlightSleep = flightEvents.find(e => (e.type === 'nap' || e.type === 'sleep') && e.inFlight);
+    console.log(`  In-flight sleep found: ${inFlightSleep ? 'YES' : 'NO'}`);
+    if (inFlightSleep) {
+        const durationMins = inFlightSleep.endTime - inFlightSleep.startTime;
+        console.log(`  Duration: ${Math.floor(durationMins / 60)}h ${durationMins % 60}m`);
+    }
 
-    expect(napEvent).toBeTruthy();
+    expect(inFlightSleep).toBeTruthy();
 });
 
 test('Flight duration calculation for cross-timezone flight', () => {
@@ -251,8 +256,9 @@ test('Flight should appear on correct day', () => {
     console.log(`  Schedule days:`);
     plan.schedule.forEach(day => {
         const flightEvent = day.events.find(e => e.type === 'flight');
-        const napEvent = day.events.find(e => e.type === 'nap');
-        console.log(`    ${day.date.toDateString()} (${day.dayLabel}): flight=${flightEvent ? 'yes' : 'no'}, nap=${napEvent ? 'yes' : 'no'}`);
+        const inFlightSleep = day.events.find(e => (e.type === 'nap' || e.type === 'sleep') && e.inFlight);
+        const groundNap = day.events.find(e => e.type === 'nap' && !e.inFlight);
+        console.log(`    ${day.date.toDateString()} (${day.dayLabel}): flight=${flightEvent ? 'yes' : 'no'}, in-flight-sleep=${inFlightSleep ? 'yes' : 'no'}, ground-nap=${groundNap ? 'yes' : 'no'}`);
     });
 });
 
@@ -297,11 +303,15 @@ test('Multi-flight scenario from screenshot', () => {
     expect(firstDay.date.getDate()).toBe(31);
     expect(firstDay.dayLabel).toBe('Departure Day');
 
-    // Check first flight has in-flight nap
+    // Check first flight has in-flight sleep (nap or sleep type)
     const flightDayEvents = firstDay.events;
-    const inFlightNap = flightDayEvents.find(e => e.type === 'nap' && e.inFlight);
-    console.log(`  In-flight nap on departure day: ${inFlightNap ? 'YES' : 'NO'}`);
-    expect(inFlightNap).toBeTruthy();
+    const inFlightSleep = flightDayEvents.find(e => (e.type === 'nap' || e.type === 'sleep') && e.inFlight);
+    console.log(`  In-flight sleep on departure day: ${inFlightSleep ? 'YES' : 'NO'}`);
+    if (inFlightSleep) {
+        const durationMins = inFlightSleep.endTime - inFlightSleep.startTime;
+        console.log(`  Sleep duration: ${Math.floor(durationMins / 60)}h ${durationMins % 60}m`);
+    }
+    expect(inFlightSleep).toBeTruthy();
 
     // Print full schedule
     console.log(`\n  Full schedule:`);
