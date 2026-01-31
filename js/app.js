@@ -499,13 +499,13 @@ function renderVerticalTimeline(events) {
 
 function getEventLabel(type) {
     const labels = {
-        'sleep': 'Sleep',
-        'light-seek': 'Seek Light',
-        'light-avoid': 'Avoid Light',
-        'caffeine': 'Caffeine OK',
-        'melatonin': 'Melatonin',
-        'nap': 'Nap',
-        'flight': 'Flight',
+        'sleep': '😴 Sleep',
+        'light-seek': '☀️ Seek Light',
+        'light-avoid': '🕶️ Avoid Light',
+        'caffeine': '☕ Caffeine OK',
+        'melatonin': '💊 Melatonin',
+        'nap': '💤 Nap',
+        'flight': '✈️ Flight',
     };
     return labels[type] || type;
 }
