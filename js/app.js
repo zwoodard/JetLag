@@ -411,6 +411,11 @@ function renderTimeline(schedule) {
 
     let html = legendHtml;
 
+    // Get current time for "Now" indicator
+    const now = new Date();
+    const todayStr = now.toDateString();
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+
     schedule.forEach(day => {
         const dateStr = day.date.toLocaleDateString('en-US', {
             weekday: 'short',
@@ -418,23 +423,38 @@ function renderTimeline(schedule) {
             day: 'numeric',
         });
 
+        // Check if this is today
+        const isToday = day.date.toDateString() === todayStr;
+
         html += `
-            <div class="timeline-day">
+            <div class="timeline-day${isToday ? ' timeline-day-today' : ''}">
                 <div class="timeline-day-header">
-                    <span class="timeline-day-title">${day.dayLabel}</span>
+                    <span class="timeline-day-title">${day.dayLabel}${isToday ? ' <span class="today-badge">Today</span>' : ''}</span>
                     <span class="timeline-day-date">${dateStr}</span>
                 </div>
                 <div class="timeline-bar">
                     ${renderTimelineEvents(day.events)}
+                    ${isToday ? renderNowIndicator(currentMins) : ''}
                 </div>
                 <div class="timeline-vertical">
-                    ${renderVerticalTimeline(day.events)}
+                    ${renderVerticalTimeline(day.events, isToday, currentMins)}
                 </div>
             </div>
         `;
     });
 
     container.innerHTML = html;
+}
+
+function renderNowIndicator(currentMins) {
+    const position = (currentMins / 1440) * 100;
+    const timeStr = formatTimeDisplay(currentMins);
+    return `
+        <div class="timeline-now" style="left: ${position}%;">
+            <div class="timeline-now-line"></div>
+            <div class="timeline-now-label">Now ${timeStr}</div>
+        </div>
+    `;
 }
 
 function renderTimelineEvents(events) {
@@ -467,7 +487,7 @@ function renderTimelineEvents(events) {
     return html;
 }
 
-function renderVerticalTimeline(events) {
+function renderVerticalTimeline(events, isToday = false, currentMins = 0) {
     // Sort events by start time
     const sortedEvents = [...events].sort((a, b) => {
         const aTime = ((a.startTime % 1440) + 1440) % 1440;
@@ -476,8 +496,17 @@ function renderVerticalTimeline(events) {
     });
 
     let html = '';
+    let nowInserted = false;
 
     sortedEvents.forEach(event => {
+        const startMins = ((event.startTime % 1440) + 1440) % 1440;
+
+        // Insert "Now" indicator before the first event that starts after current time
+        if (isToday && !nowInserted && startMins > currentMins) {
+            html += renderVerticalNowIndicator(currentMins);
+            nowInserted = true;
+        }
+
         const startTime = formatTimeDisplay(event.startTime);
         const endTime = formatTimeDisplay(event.endTime);
         const timeRange = event.type === 'melatonin' ? startTime : `${startTime} - ${endTime}`;
@@ -494,7 +523,22 @@ function renderVerticalTimeline(events) {
         `;
     });
 
+    // If Now wasn't inserted (all events are before current time), add at the end
+    if (isToday && !nowInserted) {
+        html += renderVerticalNowIndicator(currentMins);
+    }
+
     return html;
+}
+
+function renderVerticalNowIndicator(currentMins) {
+    const timeStr = formatTimeDisplay(currentMins);
+    return `
+        <div class="timeline-vertical-now">
+            <div class="timeline-vertical-now-line"></div>
+            <div class="timeline-vertical-now-label">Now ${timeStr}</div>
+        </div>
+    `;
 }
 
 function getEventLabel(type) {

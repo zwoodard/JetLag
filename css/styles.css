@@ -515,8 +515,9 @@ select.input {
     height: 56px;
     background: var(--color-surface-light);
     border-radius: var(--radius-sm);
-    overflow: hidden;
+    overflow: visible;
     border: 1px solid var(--color-border);
+    margin-top: 24px; /* Space for Now label above */
 }
 
 .timeline-event {
@@ -574,6 +575,65 @@ select.input {
 
 .timeline-event.flight {
     background: linear-gradient(135deg, var(--color-flight), #ff8c5a);
+}
+
+/* Now indicator - horizontal */
+.timeline-now {
+    position: absolute;
+    top: -24px;
+    bottom: 0;
+    z-index: 20;
+    pointer-events: none;
+}
+
+.timeline-now-line {
+    position: absolute;
+    top: 22px;
+    bottom: 0;
+    left: 0;
+    width: 3px;
+    background: #ff3b5c;
+    box-shadow: 0 0 8px rgba(255, 59, 92, 0.6), 0 0 16px rgba(255, 59, 92, 0.3);
+    border-radius: 1px;
+}
+
+.timeline-now-label {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ff3b5c;
+    color: white;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    box-shadow: 0 2px 8px rgba(255, 59, 92, 0.4);
+}
+
+.timeline-day-today {
+    position: relative;
+}
+
+.timeline-day-today .timeline-day-header {
+    border-bottom-color: #ff3b5c;
+}
+
+.today-badge {
+    display: inline-block;
+    background: #ff3b5c;
+    color: white;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
 }
 
 /* Vertical timeline for mobile */
@@ -643,6 +703,42 @@ select.input {
         font-size: 0.75rem;
         color: var(--color-text-muted);
         margin-top: 0.125rem;
+    }
+
+    /* Now indicator - vertical */
+    .timeline-vertical-now {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        border-radius: var(--radius-sm);
+        background: rgba(255, 59, 92, 0.15);
+        border: 2px solid #ff3b5c;
+        position: relative;
+    }
+
+    .timeline-vertical-now::before {
+        content: '';
+        position: absolute;
+        left: -2px;
+        top: -8px;
+        bottom: -8px;
+        width: 4px;
+        background: #ff3b5c;
+        border-radius: 2px;
+        box-shadow: 0 0 8px rgba(255, 59, 92, 0.6);
+    }
+
+    .timeline-vertical-now-line {
+        display: none;
+    }
+
+    .timeline-vertical-now-label {
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: #ff3b5c;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 }
 
