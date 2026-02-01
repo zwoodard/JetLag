@@ -913,13 +913,24 @@ function renderShifterEvents(events, startHour, endHour, isToday, currentMins) {
         const icon = getShifterIcon(event.type);
         const isActive = isToday && currentMins >= evStart && currentMins < evEnd;
 
+        // Build data attributes, including timezone info for flights
+        let dataAttrs = `data-type="${event.type}"`;
+        dataAttrs += ` data-start="${formatTimeDisplay(event.startTime)}"`;
+        dataAttrs += ` data-end="${formatTimeDisplay(event.endTime)}"`;
+        dataAttrs += ` data-desc="${escapeHtml(event.description)}"`;
+
+        if (event.type === 'flight' && event.flight) {
+            dataAttrs += ` data-dep-tz="${event.departureTimezone || ''}"`;
+            dataAttrs += ` data-arr-tz="${event.arrivalTimezone || ''}"`;
+            dataAttrs += ` data-arr-time="${event.arrivalLocalTime || ''}"`;
+            dataAttrs += ` data-duration="${event.durationMins || 0}"`;
+            dataAttrs += ` data-tz-shift="${event.timezoneShift || 0}"`;
+        }
+
         html += `
             <div class="shifter-event shifter-event-${event.type}${isActive ? ' active' : ''}"
                  style="top: ${top}%; height: ${height}%; left: ${left}%; width: ${width}%;"
-                 data-type="${event.type}"
-                 data-start="${formatTimeDisplay(event.startTime)}"
-                 data-end="${formatTimeDisplay(event.endTime)}"
-                 data-desc="${event.description}">
+                 ${dataAttrs}>
                 <span class="shifter-event-icon">${icon}</span>
             </div>
         `;
@@ -1003,6 +1014,22 @@ function formatHour(hour) {
     return `${hour - 12}pm`;
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#39;');
+}
+
+function formatTimezoneShort(tz) {
+    if (!tz) return '';
+    // Extract short name from timezone ID like "Pacific/Honolulu" -> "HST" or just show offset
+    const parts = tz.split('/');
+    return parts[parts.length - 1].replace(/_/g, ' ');
+}
+
 function showShifterPopup(element) {
     const popup = document.getElementById('shifter-popup');
     const type = element.dataset.type;
@@ -1012,7 +1039,35 @@ function showShifterPopup(element) {
 
     popup.querySelector('.shifter-popup-icon').textContent = getShifterIcon(type);
     popup.querySelector('.shifter-popup-title').textContent = getEventLabel(type);
-    popup.querySelector('.shifter-popup-time').textContent = type === 'melatonin' ? start : `${start} - ${end}`;
+
+    // Build time display with timezone info for flights
+    let timeText = '';
+    if (type === 'flight') {
+        const depTz = element.dataset.depTz;
+        const arrTz = element.dataset.arrTz;
+        const arrTime = element.dataset.arrTime;
+        const duration = parseInt(element.dataset.duration) || 0;
+        const tzShift = parseInt(element.dataset.tzShift) || 0;
+
+        const durationHrs = Math.floor(duration / 60);
+        const durationMins = duration % 60;
+        const durationStr = durationMins > 0 ? `${durationHrs}h ${durationMins}m` : `${durationHrs}h`;
+
+        timeText = `Depart: ${start} (${formatTimezoneShort(depTz)})\n`;
+        timeText += `Arrive: ${arrTime} (${formatTimezoneShort(arrTz)})\n`;
+        timeText += `Duration: ${durationStr}`;
+
+        if (tzShift !== 0) {
+            const sign = tzShift > 0 ? '+' : '';
+            timeText += `\nTimezone: ${sign}${tzShift}h`;
+        }
+    } else if (type === 'melatonin') {
+        timeText = start;
+    } else {
+        timeText = `${start} - ${end}`;
+    }
+
+    popup.querySelector('.shifter-popup-time').innerText = timeText;
     popup.querySelector('.shifter-popup-desc').textContent = desc;
 
     popup.classList.add('visible');
@@ -1020,8 +1075,25 @@ function showShifterPopup(element) {
     // Position popup near the element
     const rect = element.getBoundingClientRect();
     const popupContent = popup.querySelector('.shifter-popup-content');
-    popupContent.style.top = `${rect.bottom + 10}px`;
-    popupContent.style.left = `${Math.max(10, rect.left - 50)}px`;
+
+    // Position below the element, but ensure it stays in viewport
+    let top = rect.bottom + 10;
+    let left = Math.max(10, rect.left - 50);
+
+    // Check if popup would go off bottom of screen
+    const popupHeight = 150; // Estimate
+    if (top + popupHeight > window.innerHeight) {
+        top = rect.top - popupHeight - 10;
+    }
+
+    // Check if popup would go off right of screen
+    const popupWidth = 280;
+    if (left + popupWidth > window.innerWidth) {
+        left = window.innerWidth - popupWidth - 10;
+    }
+
+    popupContent.style.top = `${top}px`;
+    popupContent.style.left = `${left}px`;
 }
 
 function hideShifterPopup() {

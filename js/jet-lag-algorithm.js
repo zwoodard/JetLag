@@ -328,16 +328,33 @@ class JetLagPlanner {
                 const flightDate = new Date(fb.start);
                 if (flightDate.toDateString() === currentDate.toDateString()) {
                     const flightStartMins = fb.start.getHours() * 60 + fb.start.getMinutes();
-                    const flightEndMins = fb.end.getHours() * 60 + fb.end.getMinutes();
-                    // Use pre-calculated duration with proper timezone handling
+                    // Use actual duration to calculate end time (not arrival wall-clock time)
+                    // This ensures the flight shows its true length on the timeline
                     const flightDurationMins = fb.durationMins;
+                    const flightEndMins = flightStartMins + flightDurationMins;
+
+                    // Get timezone info for display
+                    const depTz = fb.flight.departureTimezone;
+                    const arrTz = fb.flight.arrivalTimezone;
+                    const depOffset = getTimezoneOffset(depTz);
+                    const arrOffset = getTimezoneOffset(arrTz);
+                    const tzShift = arrOffset - depOffset;
+
+                    // Format arrival time in arrival timezone for description
+                    const arrivalLocalTime = fb.end.getHours() * 60 + fb.end.getMinutes();
+                    const arrivalTimeStr = this.formatTime(arrivalLocalTime);
 
                     events.push({
                         type: 'flight',
                         startTime: flightStartMins,
                         endTime: flightEndMins,
-                        description: `Flight: ${fb.flight.departureAirport || 'Departure'} → ${fb.flight.arrivalAirport || 'Arrival'}`,
+                        description: `Flight: ${fb.flight.departureAirport || 'Departure'} → ${fb.flight.arrivalAirport || 'Arrival'} (${Math.round(flightDurationMins / 60)}h ${flightDurationMins % 60}m)`,
                         flight: fb.flight,
+                        durationMins: flightDurationMins,
+                        departureTimezone: depTz,
+                        arrivalTimezone: arrTz,
+                        arrivalLocalTime: arrivalTimeStr,
+                        timezoneShift: tzShift,
                     });
 
                     // Add in-flight sleep for longer flights (4+ hours)
