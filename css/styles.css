@@ -949,6 +949,296 @@ select.input {
     border-radius: 4px;
 }
 
+/* ============ Shifter View (Timeshifter-style) ============ */
+
+.shifter-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.shifter-day {
+    border-bottom: 1px solid var(--color-border);
+}
+
+.shifter-day:last-child {
+    border-bottom: none;
+}
+
+.shifter-day-today {
+    background: rgba(255, 59, 92, 0.05);
+}
+
+.shifter-date-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    background: var(--color-surface-light);
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.shifter-date {
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: var(--color-text);
+}
+
+.shifter-label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    flex: 1;
+}
+
+.shifter-now-badge {
+    background: #ff3b5c;
+    color: white;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.shifter-timeline {
+    display: flex;
+    position: relative;
+    min-height: 200px;
+}
+
+.shifter-hours-left,
+.shifter-hours-right {
+    display: flex;
+    flex-direction: column;
+    width: 40px;
+    flex-shrink: 0;
+}
+
+.shifter-hour {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    padding-top: 2px;
+    min-height: 30px;
+}
+
+.shifter-hours-right .shifter-hour {
+    color: var(--color-text-secondary);
+}
+
+.shifter-track {
+    flex: 1;
+    position: relative;
+    background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        var(--color-surface-light) 0%,
+        var(--color-surface-light) 100%
+    );
+    border-left: 1px solid var(--color-border);
+    border-right: 1px solid var(--color-border);
+    min-height: 200px;
+}
+
+/* Hour grid lines */
+.shifter-track::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent,
+        transparent 29px,
+        var(--color-border) 29px,
+        var(--color-border) 30px
+    );
+    pointer-events: none;
+}
+
+/* Event bars */
+.shifter-event {
+    position: absolute;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 6px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    min-width: 36px;
+}
+
+.shifter-event:hover {
+    transform: scale(1.05);
+    z-index: 10;
+}
+
+.shifter-event.active {
+    box-shadow: 0 0 0 3px rgba(255, 59, 92, 0.5);
+}
+
+.shifter-event-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+/* Event type colors - matching Timeshifter palette */
+.shifter-event-sleep {
+    background: linear-gradient(180deg, #3b4976 0%, #2d3a5e 100%);
+}
+
+.shifter-event-nap {
+    background: linear-gradient(180deg, #6b7db3 0%, #5a6a9a 100%);
+}
+
+.shifter-event-light-seek {
+    background: linear-gradient(180deg, #f5a623 0%, #e8941e 100%);
+}
+
+.shifter-event-light-avoid {
+    background: linear-gradient(180deg, #f5a623 0%, #e8941e 100%);
+    opacity: 0.4;
+    border: 2px dashed #f5a623;
+}
+
+.shifter-event-caffeine {
+    background: linear-gradient(180deg, #8b6914 0%, #6d5210 100%);
+}
+
+.shifter-event-melatonin {
+    background: linear-gradient(180deg, #a8b4d4 0%, #8fa0c4 100%);
+}
+
+.shifter-event-flight {
+    background: linear-gradient(180deg, var(--color-flight) 0%, #e85a2c 100%);
+}
+
+/* Now line */
+.shifter-now-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    z-index: 15;
+    display: flex;
+    align-items: center;
+}
+
+.shifter-now-dot {
+    width: 10px;
+    height: 10px;
+    background: #ff3b5c;
+    border-radius: 50%;
+    margin-left: -5px;
+    box-shadow: 0 0 8px rgba(255, 59, 92, 0.6);
+}
+
+.shifter-now-line-bar {
+    flex: 1;
+    height: 2px;
+    background: #ff3b5c;
+}
+
+.shifter-now-time {
+    background: #ff3b5c;
+    color: white;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    white-space: nowrap;
+}
+
+/* Popup */
+.shifter-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.shifter-popup.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.shifter-popup-content {
+    position: absolute;
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    max-width: 280px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.shifter-popup-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.shifter-popup-icon {
+    font-size: 1.25rem;
+}
+
+.shifter-popup-title {
+    font-weight: 700;
+    font-size: 0.9375rem;
+    color: var(--color-text);
+}
+
+.shifter-popup-time {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
+}
+
+.shifter-popup-desc {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+}
+
+/* Responsive adjustments for shifter */
+@media (max-width: 400px) {
+    .shifter-hours-left,
+    .shifter-hours-right {
+        width: 32px;
+    }
+
+    .shifter-hour {
+        font-size: 0.5625rem;
+    }
+
+    .shifter-event {
+        min-width: 28px;
+    }
+
+    .shifter-event-icon {
+        font-size: 0.875rem;
+    }
+}
+
 /* Footer */
 .app-footer {
     margin-top: auto;

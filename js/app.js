@@ -547,6 +547,9 @@ function displayPlan(plan) {
 
     // Daily view
     renderDailyView(plan.schedule);
+
+    // Shifter view (Timeshifter-style)
+    renderShifterView(plan.schedule, plan.summary);
 }
 
 // ============ Timeline Rendering ============
@@ -774,6 +777,256 @@ function renderVerticalTimeline(events, isToday = false, currentMins = 0) {
     }
 
     return html;
+}
+
+// ============ Shifter View (Timeshifter-style) ============
+
+function renderShifterView(schedule, summary) {
+    const container = document.getElementById('shifter-view');
+
+    // Get current time for "Now" indicator
+    const now = new Date();
+    const todayStr = now.toDateString();
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+
+    let html = '<div class="shifter-container">';
+
+    schedule.forEach((day, dayIndex) => {
+        const dateStr = day.date.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+        });
+        const isToday = day.date.toDateString() === todayStr;
+
+        // Group events by time range for this day
+        const events = [...day.events].sort((a, b) => {
+            const aStart = ((a.startTime % 1440) + 1440) % 1440;
+            const bStart = ((b.startTime % 1440) + 1440) % 1440;
+            return aStart - bStart;
+        });
+
+        // Find time range for this day's events
+        let minTime = 1440, maxTime = 0;
+        events.forEach(e => {
+            let start = ((e.startTime % 1440) + 1440) % 1440;
+            let end = ((e.endTime % 1440) + 1440) % 1440;
+            if (e.type === 'sleep' && end < start) end = 1440;
+            minTime = Math.min(minTime, start);
+            maxTime = Math.max(maxTime, Math.min(end, 1440));
+        });
+
+        // Round to nearest hour for display
+        const startHour = Math.floor(minTime / 60);
+        const endHour = Math.min(24, Math.ceil(maxTime / 60) + 1);
+        const hours = [];
+        for (let h = startHour; h <= endHour; h++) {
+            hours.push(h % 24);
+        }
+
+        // Date header
+        html += `
+            <div class="shifter-day${isToday ? ' shifter-day-today' : ''}">
+                <div class="shifter-date-header">
+                    <span class="shifter-date">${dateStr}</span>
+                    <span class="shifter-label">${day.dayLabel}</span>
+                    ${isToday ? '<span class="shifter-now-badge">Now</span>' : ''}
+                </div>
+                <div class="shifter-timeline">
+                    <div class="shifter-hours-left">
+                        ${hours.map(h => `<div class="shifter-hour">${formatHour(h)}</div>`).join('')}
+                    </div>
+                    <div class="shifter-track" data-start-hour="${startHour}" data-end-hour="${endHour}">
+                        ${renderShifterEvents(events, startHour, endHour, isToday, currentMins)}
+                        ${isToday ? renderShifterNowLine(currentMins, startHour, endHour) : ''}
+                    </div>
+                    <div class="shifter-hours-right">
+                        ${hours.map(h => `<div class="shifter-hour">${formatHour(h)}</div>`).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+
+    // Add event detail popup
+    html += `
+        <div class="shifter-popup" id="shifter-popup">
+            <div class="shifter-popup-content">
+                <div class="shifter-popup-header">
+                    <span class="shifter-popup-icon"></span>
+                    <span class="shifter-popup-title"></span>
+                </div>
+                <div class="shifter-popup-time"></div>
+                <div class="shifter-popup-desc"></div>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = html;
+
+    // Add click handlers for events
+    container.querySelectorAll('.shifter-event').forEach(el => {
+        el.addEventListener('click', (e) => {
+            showShifterPopup(el);
+            e.stopPropagation();
+        });
+    });
+
+    // Close popup when clicking outside
+    container.addEventListener('click', () => {
+        hideShifterPopup();
+    });
+}
+
+function renderShifterEvents(events, startHour, endHour, isToday, currentMins) {
+    const totalMins = (endHour - startHour) * 60;
+    const startMins = startHour * 60;
+
+    // Assign columns for overlapping events
+    const { events: laneEvents, laneCount } = assignShifterLanes(events, startHour, endHour);
+
+    let html = '';
+
+    laneEvents.forEach(event => {
+        let evStart = ((event.startTime % 1440) + 1440) % 1440;
+        let evEnd = ((event.endTime % 1440) + 1440) % 1440;
+
+        // Handle overnight events
+        if (event.type === 'sleep' && evEnd < evStart) {
+            evEnd = 1440;
+        }
+
+        // Clamp to display range
+        evStart = Math.max(evStart, startMins);
+        evEnd = Math.min(evEnd, endHour * 60);
+
+        const top = ((evStart - startMins) / totalMins) * 100;
+        const height = Math.max(((evEnd - evStart) / totalMins) * 100, 3);
+
+        // Calculate horizontal position based on lane
+        const laneWidth = 100 / laneCount;
+        const left = event.lane * laneWidth;
+        const width = laneWidth - 4; // Gap between lanes
+
+        const icon = getShifterIcon(event.type);
+        const isActive = isToday && currentMins >= evStart && currentMins < evEnd;
+
+        html += `
+            <div class="shifter-event shifter-event-${event.type}${isActive ? ' active' : ''}"
+                 style="top: ${top}%; height: ${height}%; left: ${left}%; width: ${width}%;"
+                 data-type="${event.type}"
+                 data-start="${formatTimeDisplay(event.startTime)}"
+                 data-end="${formatTimeDisplay(event.endTime)}"
+                 data-desc="${event.description}">
+                <span class="shifter-event-icon">${icon}</span>
+            </div>
+        `;
+    });
+
+    return html;
+}
+
+function assignShifterLanes(events, startHour, endHour) {
+    const startMins = startHour * 60;
+    const endMins = endHour * 60;
+
+    const normalized = events.map(e => {
+        let start = ((e.startTime % 1440) + 1440) % 1440;
+        let end = ((e.endTime % 1440) + 1440) % 1440;
+        if (e.type === 'sleep' && end < start) end = 1440;
+        // Clamp to range
+        start = Math.max(start, startMins);
+        end = Math.min(end, endMins);
+        return { ...e, normStart: start, normEnd: end };
+    }).filter(e => e.normEnd > e.normStart)
+      .sort((a, b) => a.normStart - b.normStart);
+
+    const lanes = [];
+
+    normalized.forEach(event => {
+        let assignedLane = -1;
+        for (let i = 0; i < lanes.length; i++) {
+            if (event.normStart >= lanes[i]) {
+                assignedLane = i;
+                lanes[i] = event.normEnd;
+                break;
+            }
+        }
+        if (assignedLane === -1) {
+            assignedLane = lanes.length;
+            lanes.push(event.normEnd);
+        }
+        event.lane = assignedLane;
+    });
+
+    return { events: normalized, laneCount: Math.max(1, lanes.length) };
+}
+
+function renderShifterNowLine(currentMins, startHour, endHour) {
+    const totalMins = (endHour - startHour) * 60;
+    const startMins = startHour * 60;
+
+    if (currentMins < startMins || currentMins > endHour * 60) {
+        return '';
+    }
+
+    const top = ((currentMins - startMins) / totalMins) * 100;
+
+    return `
+        <div class="shifter-now-line" style="top: ${top}%;">
+            <div class="shifter-now-dot"></div>
+            <div class="shifter-now-line-bar"></div>
+            <div class="shifter-now-time">${formatTimeDisplay(currentMins)}</div>
+        </div>
+    `;
+}
+
+function getShifterIcon(type) {
+    const icons = {
+        'sleep': '😴',
+        'light-seek': '☀️',
+        'light-avoid': '🕶️',
+        'caffeine': '☕',
+        'melatonin': '💊',
+        'nap': '💤',
+        'flight': '✈️',
+    };
+    return icons[type] || '•';
+}
+
+function formatHour(hour) {
+    if (hour === 0 || hour === 24) return '12am';
+    if (hour === 12) return '12pm';
+    if (hour < 12) return `${hour}am`;
+    return `${hour - 12}pm`;
+}
+
+function showShifterPopup(element) {
+    const popup = document.getElementById('shifter-popup');
+    const type = element.dataset.type;
+    const start = element.dataset.start;
+    const end = element.dataset.end;
+    const desc = element.dataset.desc;
+
+    popup.querySelector('.shifter-popup-icon').textContent = getShifterIcon(type);
+    popup.querySelector('.shifter-popup-title').textContent = getEventLabel(type);
+    popup.querySelector('.shifter-popup-time').textContent = type === 'melatonin' ? start : `${start} - ${end}`;
+    popup.querySelector('.shifter-popup-desc').textContent = desc;
+
+    popup.classList.add('visible');
+
+    // Position popup near the element
+    const rect = element.getBoundingClientRect();
+    const popupContent = popup.querySelector('.shifter-popup-content');
+    popupContent.style.top = `${rect.bottom + 10}px`;
+    popupContent.style.left = `${Math.max(10, rect.left - 50)}px`;
+}
+
+function hideShifterPopup() {
+    const popup = document.getElementById('shifter-popup');
+    popup.classList.remove('visible');
 }
 
 function getEventLabel(type) {
