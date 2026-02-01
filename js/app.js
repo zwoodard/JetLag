@@ -3,6 +3,7 @@
  */
 
 const STORAGE_KEY = 'jetlag-planner-data';
+const URL_PARAM_KEY = 'd'; // Short key for URL param
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
@@ -19,11 +20,13 @@ function initializeApp() {
         homeTimezoneSelect.value = detectedTz;
     }
 
-    // Try to load saved data
-    const savedData = loadFromStorage();
+    // Try to load saved data - URL takes priority over localStorage
+    const urlData = loadFromURL();
+    const savedData = urlData || loadFromStorage();
+
     if (savedData) {
         restoreSavedData(savedData);
-        showSavedIndicator();
+        showSavedIndicator(urlData ? 'Loaded from link' : 'Restored');
     } else {
         // Add first flight with defaults
         addFlight();
@@ -35,6 +38,7 @@ function initializeApp() {
         saveToStorage();
     });
     document.getElementById('generate-btn').addEventListener('click', generatePlan);
+    document.getElementById('share-btn').addEventListener('click', copyShareLink);
 
     // Auto-save on input changes (change event for selects/datetime)
     document.addEventListener('change', (e) => {
@@ -73,6 +77,154 @@ function initializeApp() {
     }
 }
 
+// ============ URL Encoding/Decoding ============
+
+function encodeDataForURL(data) {
+    try {
+        // Create a minimal data object (exclude savedAt, include only what's needed)
+        const minimal = {
+            h: data.homeTimezone,           // home timezone
+            b: data.usualBedtime,           // bedtime
+            w: data.usualWaketime,          // waketime
+            d: data.daysBeforeStart,        // days before
+            f: data.flights.map(f => ({     // flights (shortened keys)
+                da: f.departureAirport,
+                aa: f.arrivalAirport,
+                dd: f.departureDateTime,
+                dt: f.departureTimezone,
+                ad: f.arrivalDateTime,
+                at: f.arrivalTimezone,
+            })),
+        };
+        const json = JSON.stringify(minimal);
+        // Use base64url encoding (URL-safe)
+        const base64 = btoa(unescape(encodeURIComponent(json)))
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/, '');
+        return base64;
+    } catch (e) {
+        console.warn('[JetLag] Could not encode data for URL:', e);
+        return null;
+    }
+}
+
+function decodeDataFromURL(encoded) {
+    try {
+        // Restore base64 padding and chars
+        let base64 = encoded
+            .replace(/-/g, '+')
+            .replace(/_/g, '/');
+        // Add padding if needed
+        while (base64.length % 4) {
+            base64 += '=';
+        }
+        const json = decodeURIComponent(escape(atob(base64)));
+        const minimal = JSON.parse(json);
+
+        // Expand back to full format
+        return {
+            homeTimezone: minimal.h,
+            usualBedtime: minimal.b,
+            usualWaketime: minimal.w,
+            daysBeforeStart: minimal.d,
+            flights: minimal.f.map(f => ({
+                departureAirport: f.da || '',
+                arrivalAirport: f.aa || '',
+                departureDateTime: f.dd || '',
+                departureTimezone: f.dt || '',
+                arrivalDateTime: f.ad || '',
+                arrivalTimezone: f.at || '',
+            })),
+        };
+    } catch (e) {
+        console.warn('[JetLag] Could not decode data from URL:', e);
+        return null;
+    }
+}
+
+function saveToURL(data) {
+    const encoded = encodeDataForURL(data);
+    if (encoded) {
+        const url = new URL(window.location.href);
+        url.searchParams.set(URL_PARAM_KEY, encoded);
+        // Use replaceState to avoid cluttering browser history
+        window.history.replaceState({}, '', url.toString());
+        console.log('[JetLag] Saved to URL');
+    }
+}
+
+function loadFromURL() {
+    try {
+        const url = new URL(window.location.href);
+        const encoded = url.searchParams.get(URL_PARAM_KEY);
+        if (encoded) {
+            const data = decodeDataFromURL(encoded);
+            if (data) {
+                console.log('[JetLag] Loaded from URL:', data.flights?.length, 'flights');
+                return data;
+            }
+        }
+        return null;
+    } catch (e) {
+        console.warn('[JetLag] Could not load from URL:', e);
+        return null;
+    }
+}
+
+function getShareableURL() {
+    const data = {
+        homeTimezone: document.getElementById('home-timezone').value,
+        usualBedtime: document.getElementById('usual-bedtime').value,
+        usualWaketime: document.getElementById('usual-waketime').value,
+        daysBeforeStart: document.getElementById('plan-start').value,
+        flights: collectFlightData(),
+    };
+    const encoded = encodeDataForURL(data);
+    if (encoded) {
+        const url = new URL(window.location.href);
+        url.searchParams.set(URL_PARAM_KEY, encoded);
+        return url.toString();
+    }
+    return window.location.href;
+}
+
+async function copyShareLink() {
+    const url = getShareableURL();
+    const btn = document.getElementById('share-btn');
+    const originalText = btn.textContent;
+
+    try {
+        await navigator.clipboard.writeText(url);
+        btn.textContent = 'Copied!';
+        btn.classList.add('success');
+        console.log('[JetLag] Share link copied to clipboard');
+    } catch (e) {
+        // Fallback for older browsers or if clipboard API fails
+        const textArea = document.createElement('textarea');
+        textArea.value = url;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            btn.textContent = 'Copied!';
+            btn.classList.add('success');
+        } catch (e2) {
+            btn.textContent = 'Failed';
+            console.warn('[JetLag] Could not copy to clipboard:', e2);
+        }
+        document.body.removeChild(textArea);
+    }
+
+    // Reset button after 2 seconds
+    setTimeout(() => {
+        btn.textContent = originalText;
+        btn.classList.remove('success');
+    }, 2000);
+}
+
 // ============ Local Storage ============
 
 function saveToStorage() {
@@ -84,12 +236,17 @@ function saveToStorage() {
         flights: collectFlightData(),
         savedAt: new Date().toISOString(),
     };
+
+    // Save to localStorage
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         console.log('[JetLag] Saved to localStorage:', data.flights.length, 'flights');
     } catch (e) {
         console.warn('[JetLag] Could not save to localStorage:', e);
     }
+
+    // Also update URL (debounced in the caller already for input events)
+    saveToURL(data);
 }
 
 function loadFromStorage() {
@@ -133,12 +290,12 @@ function restoreSavedData(data) {
     }
 }
 
-function showSavedIndicator() {
+function showSavedIndicator(message = 'Restored') {
     const header = document.querySelector('#flights-section h2');
     if (header && !header.querySelector('.saved-indicator')) {
         const indicator = document.createElement('span');
         indicator.className = 'saved-indicator';
-        indicator.textContent = 'Restored';
+        indicator.textContent = message;
         header.appendChild(indicator);
 
         // Fade out after 3 seconds

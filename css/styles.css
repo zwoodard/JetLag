@@ -301,6 +301,27 @@ select.input {
     color: var(--color-text);
 }
 
+.btn-ghost.success {
+    background: var(--color-caffeine);
+    color: #1a1a2d;
+    border-color: var(--color-caffeine);
+}
+
+.button-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.button-row .btn-primary {
+    flex: 1;
+    min-width: 200px;
+}
+
+.button-row .btn-ghost {
+    flex: 0 0 auto;
+}
+
 .btn-icon {
     display: flex;
     align-items: center;
