@@ -543,13 +543,11 @@ select.input {
 
 .timeline-event {
     position: absolute;
-    top: 4px;
-    bottom: 4px;
     border-radius: var(--radius-xs);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.6875rem;
+    font-size: 0.5625rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.02em;
@@ -557,14 +555,16 @@ select.input {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    padding: 0 6px;
-    min-width: 24px;
-    transition: transform var(--transition), box-shadow var(--transition);
+    padding: 0 4px;
+    min-width: 20px;
+    transition: transform var(--transition), box-shadow var(--transition), opacity var(--transition);
+    box-sizing: border-box;
 }
 
 .timeline-event:hover {
-    transform: scaleY(1.1);
-    z-index: 10;
+    z-index: 15;
+    filter: brightness(1.15);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .timeline-event.sleep {
@@ -760,6 +760,65 @@ select.input {
         color: #ff3b5c;
         text-transform: uppercase;
         letter-spacing: 0.05em;
+    }
+
+    .timeline-vertical-now.standalone {
+        justify-content: center;
+        margin-bottom: 0.75rem;
+    }
+
+    /* Section headers */
+    .timeline-section-header {
+        font-size: 0.6875rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--color-text-muted);
+        padding: 0.5rem 0;
+        margin-top: 0.5rem;
+    }
+
+    .timeline-section-header.active-header {
+        color: #ff3b5c;
+        font-size: 0.75rem;
+        margin-top: 0;
+    }
+
+    .timeline-section-header.past-header {
+        color: var(--color-text-muted);
+        opacity: 0.7;
+    }
+
+    /* Active event styling */
+    .timeline-vertical-event.active-now {
+        border-width: 2px;
+        box-shadow: 0 0 0 2px rgba(255, 59, 92, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+        position: relative;
+    }
+
+    .timeline-vertical-event.active-now::after {
+        content: 'NOW';
+        position: absolute;
+        top: -8px;
+        right: 8px;
+        background: #ff3b5c;
+        color: white;
+        font-size: 0.5625rem;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 3px;
+        letter-spacing: 0.05em;
+    }
+
+    /* Past event styling */
+    .timeline-vertical-event.past-event {
+        opacity: 0.5;
+    }
+
+    .timeline-vertical-event.past-event .timeline-vertical-label,
+    .timeline-vertical-event.past-event .timeline-vertical-time {
+        text-decoration: line-through;
+        text-decoration-color: var(--color-text-muted);
     }
 }
 

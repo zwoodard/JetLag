@@ -583,14 +583,17 @@ function renderTimeline(schedule) {
         // Check if this is today
         const isToday = day.date.toDateString() === todayStr;
 
+        // Render horizontal timeline with dynamic height for lanes
+        const timelineResult = renderTimelineEvents(day.events);
+
         html += `
             <div class="timeline-day${isToday ? ' timeline-day-today' : ''}">
                 <div class="timeline-day-header">
                     <span class="timeline-day-title">${day.dayLabel}${isToday ? ' <span class="today-badge">Today</span>' : ''}</span>
                     <span class="timeline-day-date">${dateStr}</span>
                 </div>
-                <div class="timeline-bar">
-                    ${renderTimelineEvents(day.events)}
+                <div class="timeline-bar" style="height: ${timelineResult.height}px;">
+                    ${timelineResult.html}
                     ${isToday ? renderNowIndicator(currentMins) : ''}
                 </div>
                 <div class="timeline-vertical">
@@ -614,54 +617,131 @@ function renderNowIndicator(currentMins) {
     `;
 }
 
+/**
+ * Assign events to lanes to handle overlaps.
+ * Returns events with a 'lane' property (0, 1, 2, etc.)
+ */
+function assignLanes(events) {
+    // Normalize times and sort by start
+    const normalized = events.map(e => {
+        let start = ((e.startTime % 1440) + 1440) % 1440;
+        let end = ((e.endTime % 1440) + 1440) % 1440;
+        // Handle overnight events
+        if (e.type === 'sleep' && end < start) {
+            end += 1440;
+        }
+        return { ...e, normStart: start, normEnd: end };
+    }).sort((a, b) => a.normStart - b.normStart);
+
+    // Assign lanes - greedy algorithm
+    const lanes = []; // Each lane has an 'endTime' of the last event in it
+
+    normalized.forEach(event => {
+        // Find the first lane where this event fits (doesn't overlap)
+        let assignedLane = -1;
+        for (let i = 0; i < lanes.length; i++) {
+            if (event.normStart >= lanes[i]) {
+                assignedLane = i;
+                lanes[i] = event.normEnd;
+                break;
+            }
+        }
+        // If no lane fits, create a new one
+        if (assignedLane === -1) {
+            assignedLane = lanes.length;
+            lanes.push(event.normEnd);
+        }
+        event.lane = assignedLane;
+    });
+
+    return { events: normalized, laneCount: lanes.length };
+}
+
 function renderTimelineEvents(events) {
+    const { events: laneEvents, laneCount } = assignLanes(events);
+
+    // Calculate lane height - shrink if many lanes
+    const laneHeight = laneCount <= 2 ? 24 : Math.max(16, 48 / laneCount);
+    const totalHeight = laneCount * laneHeight + 8; // 8px padding
+
     let html = '';
 
-    events.forEach(event => {
-        let startMins = ((event.startTime % 1440) + 1440) % 1440;
-        let endMins = ((event.endTime % 1440) + 1440) % 1440;
+    laneEvents.forEach(event => {
+        let startMins = event.normStart;
+        let endMins = event.normEnd;
 
-        // Handle overnight events
-        if (event.type === 'sleep' && endMins < startMins) {
+        // Handle overnight events (already normalized, but need to render in two parts if > 1440)
+        if (endMins > 1440) {
             // Evening part
             const eveningWidth = ((1440 - startMins) / 1440) * 100;
             const eveningLeft = (startMins / 1440) * 100;
-            html += `<div class="timeline-event ${event.type}" style="left: ${eveningLeft}%; width: ${eveningWidth}%;" title="${event.description}"></div>`;
+            const top = 4 + event.lane * laneHeight;
+            html += `<div class="timeline-event ${event.type}" style="left: ${eveningLeft}%; width: ${eveningWidth}%; top: ${top}px; height: ${laneHeight - 2}px;" title="${event.description}"></div>`;
 
-            // Morning part
-            const morningWidth = (endMins / 1440) * 100;
-            html += `<div class="timeline-event ${event.type}" style="left: 0%; width: ${morningWidth}%;" title="${event.description}"></div>`;
+            // Morning part (next day, but we show it wrapping)
+            const morningWidth = ((endMins - 1440) / 1440) * 100;
+            html += `<div class="timeline-event ${event.type}" style="left: 0%; width: ${morningWidth}%; top: ${top}px; height: ${laneHeight - 2}px;" title="${event.description}"></div>`;
             return;
         }
 
         const left = (startMins / 1440) * 100;
         const width = Math.max(((endMins - startMins) / 1440) * 100, 1.5);
+        const top = 4 + event.lane * laneHeight;
 
         const label = getEventLabel(event.type);
-        html += `<div class="timeline-event ${event.type}" style="left: ${left}%; width: ${width}%;" title="${event.description}">${width > 6 ? label : ''}</div>`;
+        const showLabel = width > 8 && laneHeight >= 20;
+        html += `<div class="timeline-event ${event.type}" style="left: ${left}%; width: ${width}%; top: ${top}px; height: ${laneHeight - 2}px;" title="${event.description}">${showLabel ? label : ''}</div>`;
     });
 
-    return html;
+    // Return HTML with dynamic height style
+    return { html, height: totalHeight };
 }
 
 function renderVerticalTimeline(events, isToday = false, currentMins = 0) {
-    // Sort events by start time
-    const sortedEvents = [...events].sort((a, b) => {
-        const aTime = ((a.startTime % 1440) + 1440) % 1440;
-        const bTime = ((b.startTime % 1440) + 1440) % 1440;
-        return aTime - bTime;
+    // Categorize events: active now, upcoming, past
+    const categorized = events.map(event => {
+        const start = ((event.startTime % 1440) + 1440) % 1440;
+        let end = ((event.endTime % 1440) + 1440) % 1440;
+        // Handle overnight
+        if (event.type === 'sleep' && end < start) {
+            end += 1440;
+        }
+        const adjustedCurrent = currentMins < start && end > 1440 ? currentMins + 1440 : currentMins;
+
+        let status = 'upcoming';
+        if (isToday) {
+            if (adjustedCurrent >= start && adjustedCurrent < end) {
+                status = 'active';
+            } else if (adjustedCurrent >= end) {
+                status = 'past';
+            }
+        }
+        return { ...event, normStart: start, normEnd: end, status };
+    });
+
+    // Sort: active first, then upcoming by time, then past
+    const sorted = categorized.sort((a, b) => {
+        const statusOrder = { active: 0, upcoming: 1, past: 2 };
+        if (statusOrder[a.status] !== statusOrder[b.status]) {
+            return statusOrder[a.status] - statusOrder[b.status];
+        }
+        return a.normStart - b.normStart;
     });
 
     let html = '';
-    let nowInserted = false;
+    let lastStatus = null;
 
-    sortedEvents.forEach(event => {
-        const startMins = ((event.startTime % 1440) + 1440) % 1440;
-
-        // Insert "Now" indicator before the first event that starts after current time
-        if (isToday && !nowInserted && startMins > currentMins) {
-            html += renderVerticalNowIndicator(currentMins);
-            nowInserted = true;
+    sorted.forEach(event => {
+        // Add section headers
+        if (isToday && event.status !== lastStatus) {
+            if (event.status === 'active') {
+                html += `<div class="timeline-section-header active-header">🔴 Happening Now</div>`;
+            } else if (event.status === 'upcoming' && lastStatus === 'active') {
+                html += `<div class="timeline-section-header">Coming Up</div>`;
+            } else if (event.status === 'past' && lastStatus !== 'past') {
+                html += `<div class="timeline-section-header past-header">Earlier Today</div>`;
+            }
+            lastStatus = event.status;
         }
 
         const startTime = formatTimeDisplay(event.startTime);
@@ -669,8 +749,11 @@ function renderVerticalTimeline(events, isToday = false, currentMins = 0) {
         const timeRange = event.type === 'melatonin' ? startTime : `${startTime} - ${endTime}`;
         const label = getEventLabel(event.type);
 
+        const activeClass = event.status === 'active' ? ' active-now' : '';
+        const pastClass = event.status === 'past' ? ' past-event' : '';
+
         html += `
-            <div class="timeline-vertical-event ${event.type}">
+            <div class="timeline-vertical-event ${event.type}${activeClass}${pastClass}">
                 <div class="timeline-vertical-time">${timeRange}</div>
                 <div>
                     <div class="timeline-vertical-label">${label}</div>
@@ -680,22 +763,17 @@ function renderVerticalTimeline(events, isToday = false, currentMins = 0) {
         `;
     });
 
-    // If Now wasn't inserted (all events are before current time), add at the end
-    if (isToday && !nowInserted) {
-        html += renderVerticalNowIndicator(currentMins);
+    // Add Now indicator if no active events
+    if (isToday && !sorted.some(e => e.status === 'active')) {
+        const timeStr = formatTimeDisplay(currentMins);
+        html = `
+            <div class="timeline-vertical-now standalone">
+                <div class="timeline-vertical-now-label">Now ${timeStr}</div>
+            </div>
+        ` + html;
     }
 
     return html;
-}
-
-function renderVerticalNowIndicator(currentMins) {
-    const timeStr = formatTimeDisplay(currentMins);
-    return `
-        <div class="timeline-vertical-now">
-            <div class="timeline-vertical-now-line"></div>
-            <div class="timeline-vertical-now-label">Now ${timeStr}</div>
-        </div>
-    `;
 }
 
 function getEventLabel(type) {
