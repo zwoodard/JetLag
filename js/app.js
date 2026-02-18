@@ -811,7 +811,7 @@ function renderShifterView(schedule, summary) {
         events.forEach(e => {
             let start = ((e.startTime % 1440) + 1440) % 1440;
             let end = ((e.endTime % 1440) + 1440) % 1440;
-            if (e.type === 'sleep' && end < start) end = 1440;
+            if (end < start) end = 1440;
             minTime = Math.min(minTime, start);
             maxTime = Math.max(maxTime, Math.min(end, 1440));
         });
@@ -893,8 +893,8 @@ function renderShifterEvents(events, startHour, endHour, isToday, currentMins) {
         let evStart = ((event.startTime % 1440) + 1440) % 1440;
         let evEnd = ((event.endTime % 1440) + 1440) % 1440;
 
-        // Handle overnight events
-        if (event.type === 'sleep' && evEnd < evStart) {
+        // Handle overnight events - clamp at midnight (continuation on next day)
+        if (evEnd < evStart) {
             evEnd = 1440;
         }
 
@@ -946,7 +946,7 @@ function assignShifterLanes(events, startHour, endHour) {
     const normalized = events.map(e => {
         let start = ((e.startTime % 1440) + 1440) % 1440;
         let end = ((e.endTime % 1440) + 1440) % 1440;
-        if (e.type === 'sleep' && end < start) end = 1440;
+        if (end < start) end = 1440;
         // Clamp to range
         start = Math.max(start, startMins);
         end = Math.min(end, endMins);
@@ -1038,7 +1038,7 @@ function showShifterPopup(element) {
     const desc = element.dataset.desc;
 
     popup.querySelector('.shifter-popup-icon').textContent = getShifterIcon(type);
-    popup.querySelector('.shifter-popup-title').textContent = getEventLabel(type);
+    popup.querySelector('.shifter-popup-title').textContent = getEventLabelText(type);
 
     // Build time display with timezone info for flights
     let timeText = '';
@@ -1110,6 +1110,19 @@ function getEventLabel(type) {
         'melatonin': '💊 Melatonin',
         'nap': '💤 Nap',
         'flight': '✈️ Flight',
+    };
+    return labels[type] || type;
+}
+
+function getEventLabelText(type) {
+    const labels = {
+        'sleep': 'Sleep',
+        'light-seek': 'Seek Light',
+        'light-avoid': 'Avoid Light',
+        'caffeine': 'Caffeine OK',
+        'melatonin': 'Melatonin',
+        'nap': 'Nap',
+        'flight': 'Flight',
     };
     return labels[type] || type;
 }

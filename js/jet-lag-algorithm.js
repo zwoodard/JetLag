@@ -6,18 +6,21 @@
  * - Light exposure AFTER CBTmin advances circadian clock (for eastward travel)
  * - Light exposure BEFORE CBTmin delays circadian clock (for westward travel)
  * - Body can shift ~1-1.5 hours per day naturally
- * - Melatonin 5h before bed advances clock; upon waking delays clock
+ * - Melatonin ~1.5h before bed to assist natural rise in melatonin (CDC recommendation)
  * - Caffeine should be avoided 6+ hours before desired sleep
  */
 
 class JetLagPlanner {
     constructor(config) {
         this.homeTimezone = config.homeTimezone;
-        this.homeOffset = getTimezoneOffset(config.homeTimezone);
         this.usualBedtime = this.parseTime(config.usualBedtime); // minutes from midnight
         this.usualWaketime = this.parseTime(config.usualWaketime);
         this.flights = config.flights;
         this.daysBeforeStart = config.daysBeforeStart !== undefined ? config.daysBeforeStart : 2;
+
+        // Compute home offset using first flight date for DST accuracy
+        const refDate = this.flights.length > 0 ? new Date(this.flights[0].departureDateTime) : new Date();
+        this.homeOffset = getTimezoneOffset(config.homeTimezone, refDate);
 
         // Constants
         this.MAX_SHIFT_PER_DAY = 1.5; // hours
@@ -25,7 +28,7 @@ class JetLagPlanner {
         this.CBMT_BEFORE_WAKE = 2.5; // hours before wake time
         this.LIGHT_EXPOSURE_DURATION = 2; // hours
         this.CAFFEINE_CUTOFF_BEFORE_BED = 6; // hours
-        this.MELATONIN_BEFORE_BED = 5; // hours (for advancing)
+        this.MELATONIN_BEFORE_BED = 1.5; // hours — CDC recommends 90 min before bed
     }
 
     parseTime(timeStr) {
@@ -59,8 +62,10 @@ class JetLagPlanner {
      *   - Duration: 13 hours (not 32 hours!)
      */
     calculateFlightDuration(flight) {
-        const depOffset = getTimezoneOffset(flight.departureTimezone);
-        const arrOffset = getTimezoneOffset(flight.arrivalTimezone);
+        const depDate = new Date(flight.departureDateTime);
+        const arrDate = new Date(flight.arrivalDateTime);
+        const depOffset = getTimezoneOffset(flight.departureTimezone, depDate);
+        const arrOffset = getTimezoneOffset(flight.arrivalTimezone, arrDate);
 
         if (depOffset === null || arrOffset === null) {
             // Fallback to naive calculation if timezones unknown
@@ -190,9 +195,9 @@ class JetLagPlanner {
         const firstFlight = sortedFlights[0];
         const lastFlight = sortedFlights[sortedFlights.length - 1];
 
-        // Calculate total timezone shift
-        const departureOffset = getTimezoneOffset(firstFlight.departureTimezone);
-        const arrivalOffset = getTimezoneOffset(lastFlight.arrivalTimezone);
+        // Calculate total timezone shift (DST-aware using actual flight dates)
+        const departureOffset = getTimezoneOffset(firstFlight.departureTimezone, new Date(firstFlight.departureDateTime));
+        const arrivalOffset = getTimezoneOffset(lastFlight.arrivalTimezone, new Date(lastFlight.arrivalDateTime));
         const totalShift = arrivalOffset - departureOffset; // positive = eastward
 
         // Determine direction and optimal approach
@@ -257,9 +262,10 @@ class JetLagPlanner {
         startDate.setDate(startDate.getDate() - this.daysBeforeStart);
         startDate.setHours(0, 0, 0, 0);
 
-        // End date: N days after last arrival
-        const endDate = new Date(lastArrivalDate);
-        endDate.setDate(endDate.getDate() + Math.max(daysToAdjust - this.daysBeforeStart, 2));
+        // End date: schedule should span exactly daysBeforeStart + daysToAdjust days
+        const totalScheduleDays = this.daysBeforeStart + daysToAdjust;
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + totalScheduleDays - 1);
         endDate.setHours(23, 59, 59, 999);
 
         // Calculate daily shift amount
@@ -302,18 +308,8 @@ class JetLagPlanner {
             const events = [];
 
             // Calculate target times for this day
-            let shiftApplied = 0;
-            if (phase === 'pre-flight') {
-                // Gradually shift before departure
-                shiftApplied = (dayIndex + 1) * shiftPerDay;
-            } else if (phase === 'post-arrival') {
-                // Continue shifting toward destination
-                const daysSinceArrival = Math.floor((currentDate - lastArrivalDate) / (1000 * 60 * 60 * 24));
-                shiftApplied = Math.min(totalShift, (this.daysBeforeStart + daysSinceArrival + 1) * shiftPerDay);
-            } else {
-                // During transit, maintain current shift
-                shiftApplied = (this.daysBeforeStart) * shiftPerDay;
-            }
+            // Linear progression: each day shifts by shiftPerDay, capped at totalShift
+            const shiftApplied = Math.min(totalShift, (dayIndex + 1) * shiftPerDay);
 
             // Apply shift (eastward = earlier times, westward = later times)
             const shiftMinutes = (direction === 'east' ? -1 : 1) * shiftApplied * 60;
@@ -326,29 +322,33 @@ class JetLagPlanner {
             // Add flight events for this day
             flightBlocks.forEach(fb => {
                 const flightDate = new Date(fb.start);
+                const flightStartMins = fb.start.getHours() * 60 + fb.start.getMinutes();
+                const flightDurationMins = fb.durationMins;
+                const flightEndMins = flightStartMins + flightDurationMins;
+
+                // Get timezone info for display
+                const depTz = fb.flight.departureTimezone;
+                const arrTz = fb.flight.arrivalTimezone;
+                const depOffset = getTimezoneOffset(depTz, fb.start);
+                const arrOffset = getTimezoneOffset(arrTz, fb.end);
+                const tzShift = arrOffset - depOffset;
+
+                // Format arrival time in arrival timezone for description
+                const arrivalLocalTime = fb.end.getHours() * 60 + fb.end.getMinutes();
+                const arrivalTimeStr = this.formatTime(arrivalLocalTime);
+
+                const flightDesc = `Flight: ${fb.flight.departureAirport || 'Departure'} → ${fb.flight.arrivalAirport || 'Arrival'} (${Math.floor(flightDurationMins / 60)}h ${flightDurationMins % 60}m)`;
+
+                // Compute the actual end date/time of the flight
+                const flightActualEnd = new Date(fb.start.getTime() + flightDurationMins * 60 * 1000);
+
                 if (flightDate.toDateString() === currentDate.toDateString()) {
-                    const flightStartMins = fb.start.getHours() * 60 + fb.start.getMinutes();
-                    // Use actual duration to calculate end time (not arrival wall-clock time)
-                    // This ensures the flight shows its true length on the timeline
-                    const flightDurationMins = fb.durationMins;
-                    const flightEndMins = flightStartMins + flightDurationMins;
-
-                    // Get timezone info for display
-                    const depTz = fb.flight.departureTimezone;
-                    const arrTz = fb.flight.arrivalTimezone;
-                    const depOffset = getTimezoneOffset(depTz);
-                    const arrOffset = getTimezoneOffset(arrTz);
-                    const tzShift = arrOffset - depOffset;
-
-                    // Format arrival time in arrival timezone for description
-                    const arrivalLocalTime = fb.end.getHours() * 60 + fb.end.getMinutes();
-                    const arrivalTimeStr = this.formatTime(arrivalLocalTime);
-
+                    // Flight departs on this day
                     events.push({
                         type: 'flight',
                         startTime: flightStartMins,
-                        endTime: flightEndMins,
-                        description: `Flight: ${fb.flight.departureAirport || 'Departure'} → ${fb.flight.arrivalAirport || 'Arrival'} (${Math.round(flightDurationMins / 60)}h ${flightDurationMins % 60}m)`,
+                        endTime: Math.min(flightEndMins, 1440), // Clamp at midnight if overnight
+                        description: flightDesc,
                         flight: fb.flight,
                         durationMins: flightDurationMins,
                         departureTimezone: depTz,
@@ -358,7 +358,6 @@ class JetLagPlanner {
                     });
 
                     // Add in-flight sleep for longer flights (4+ hours)
-                    // Sleep duration is based on flight length, arrival time, and direction
                     if (flightDurationMins >= 240) {
                         const sleepParams = this.calculateInFlightSleep({
                             flightDurationMins,
@@ -372,7 +371,6 @@ class JetLagPlanner {
                             const sleepStartMins = flightStartMins + sleepParams.startOffset;
                             const sleepEndMins = sleepStartMins + sleepParams.duration;
 
-                            // Verify sleep fits within flight
                             const sleepEndsBeforeLanding = (sleepParams.startOffset + sleepParams.duration + 30) < flightDurationMins;
 
                             if (sleepEndsBeforeLanding) {
@@ -386,6 +384,26 @@ class JetLagPlanner {
                                 });
                             }
                         }
+                    }
+                }
+
+                // Check if flight carries over from previous day into this day
+                if (flightActualEnd.toDateString() === currentDate.toDateString() &&
+                    flightDate.toDateString() !== currentDate.toDateString()) {
+                    const endMinsToday = flightActualEnd.getHours() * 60 + flightActualEnd.getMinutes();
+                    if (endMinsToday > 0) {
+                        events.push({
+                            type: 'flight',
+                            startTime: 0, // From midnight
+                            endTime: endMinsToday,
+                            description: flightDesc + ' (cont.)',
+                            flight: fb.flight,
+                            durationMins: flightDurationMins,
+                            departureTimezone: depTz,
+                            arrivalTimezone: arrTz,
+                            arrivalLocalTime: arrivalTimeStr,
+                            timezoneShift: tzShift,
+                        });
                     }
                 }
             });
@@ -420,7 +438,7 @@ class JetLagPlanner {
                     description: 'Avoid bright light, use dim lighting or blue blockers',
                 });
 
-                // Melatonin to advance clock (5h before target bedtime)
+                // Melatonin to advance clock (90 min before target bedtime per CDC)
                 const melatoninTime = targetBedtime - this.MELATONIN_BEFORE_BED * 60;
                 if (melatoninTime > targetWaketime) {
                     events.push({
@@ -513,18 +531,31 @@ class JetLagPlanner {
                 return !conflictsWithFlight(eventStart, eventEnd);
             });
 
+            // Convert post-arrival event times to destination timezone
+            const isPostArrival = phase === 'post-arrival';
+            const tzOffsetMins = (arrivalOffset - departureOffset) * 60;
+            if (isPostArrival && tzOffsetMins !== 0) {
+                filteredEvents.forEach(event => {
+                    if (event.type !== 'flight' && !event.inFlight) {
+                        event.startTime += tzOffsetMins;
+                        event.endTime += tzOffsetMins;
+                    }
+                });
+            }
+
             schedule.push({
                 date: new Date(currentDate),
                 dayIndex,
                 dayLabel: this.getDayLabel(dayIndex, this.daysBeforeStart, phase, lastArrivalDate, currentDate),
                 phase,
+                displayTimezone: isPostArrival ? flights[flights.length - 1].arrivalTimezone : flights[0].departureTimezone,
                 events: filteredEvents.sort((a, b) => {
                     const aStart = ((a.startTime % 1440) + 1440) % 1440;
                     const bStart = ((b.startTime % 1440) + 1440) % 1440;
                     return aStart - bStart;
                 }),
-                targetBedtime,
-                targetWaketime,
+                targetBedtime: isPostArrival ? targetBedtime + tzOffsetMins : targetBedtime,
+                targetWaketime: isPostArrival ? targetWaketime + tzOffsetMins : targetWaketime,
             });
 
             currentDate.setDate(currentDate.getDate() + 1);
@@ -535,17 +566,31 @@ class JetLagPlanner {
     }
 
     getDayLabel(dayIndex, daysBeforeStart, phase, lastArrivalDate, currentDate) {
-        if (phase === 'pre-flight') {
+        if (dayIndex < daysBeforeStart) {
             const daysUntil = daysBeforeStart - dayIndex;
-            if (daysUntil === 0) return 'Departure Day';
             return `${daysUntil} day${daysUntil > 1 ? 's' : ''} before departure`;
-        } else if (phase === 'in-transit') {
-            return 'Travel Day';
-        } else {
-            const daysSince = Math.floor((currentDate - lastArrivalDate) / (1000 * 60 * 60 * 24));
-            if (daysSince === 0) return 'Arrival Day';
-            return `Day ${daysSince} at destination`;
         }
+
+        if (dayIndex === daysBeforeStart) {
+            return 'Departure Day';
+        }
+
+        // Post-departure: check if this is the arrival date or after
+        const arrivalDateOnly = new Date(lastArrivalDate);
+        arrivalDateOnly.setHours(0, 0, 0, 0);
+        const currentDateOnly = new Date(currentDate);
+        currentDateOnly.setHours(0, 0, 0, 0);
+
+        if (currentDateOnly < arrivalDateOnly) {
+            return 'Travel Day';
+        }
+
+        if (currentDateOnly.getTime() === arrivalDateOnly.getTime()) {
+            return 'Arrival Day';
+        }
+
+        const daysAfterArrival = Math.round((currentDateOnly - arrivalDateOnly) / (1000 * 60 * 60 * 24));
+        return `Day ${daysAfterArrival} at destination`;
     }
 }
 

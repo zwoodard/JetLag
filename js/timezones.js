@@ -140,14 +140,54 @@ function populateTimezoneSelects() {
 }
 
 // Get timezone offset from timezone ID or airport code
-function getTimezoneOffset(timezoneIdOrAirport) {
-    // Check if it's an airport code
-    const airport = AIRPORTS[timezoneIdOrAirport.toUpperCase()];
+// If a date is provided, computes the actual offset for that date (DST-aware)
+function getTimezoneOffset(timezoneIdOrAirport, date) {
+    // Resolve to IANA timezone ID
+    const tzId = resolveTimezoneId(timezoneIdOrAirport);
+
+    // Try dynamic offset if date is provided
+    if (date && tzId) {
+        const dynamic = getDynamicOffset(tzId, date);
+        if (dynamic !== null) return dynamic;
+    }
+
+    // Fallback to static offset
+    const airport = AIRPORTS[timezoneIdOrAirport.toUpperCase?.() || ''];
     if (airport) return airport.offset;
 
-    // Otherwise look up in TIMEZONES
     const tz = TIMEZONES.find(t => t.id === timezoneIdOrAirport);
     return tz ? tz.offset : null;
+}
+
+// Resolve an airport code or timezone ID to an IANA timezone ID
+function resolveTimezoneId(timezoneIdOrAirport) {
+    if (!timezoneIdOrAirport) return null;
+    const airport = AIRPORTS[timezoneIdOrAirport.toUpperCase?.() || ''];
+    if (airport) return airport.timezone;
+    const tz = TIMEZONES.find(t => t.id === timezoneIdOrAirport);
+    return tz ? tz.id : timezoneIdOrAirport; // Assume it's already an IANA ID
+}
+
+// Compute the actual UTC offset for a timezone at a specific date (DST-aware)
+function getDynamicOffset(timezoneId, date) {
+    try {
+        const fmt = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezoneId,
+            timeZoneName: 'longOffset',
+        });
+        const parts = fmt.formatToParts(date instanceof Date ? date : new Date(date));
+        const tzPart = parts.find(p => p.type === 'timeZoneName');
+        if (!tzPart) return null;
+        if (tzPart.value === 'GMT') return 0;
+        const match = tzPart.value.match(/GMT([+-])(\d{1,2}):?(\d{2})?/);
+        if (match) {
+            const sign = match[1] === '+' ? 1 : -1;
+            return sign * (parseInt(match[2]) + parseInt(match[3] || '0') / 60);
+        }
+        return null;
+    } catch (e) {
+        return null;
+    }
 }
 
 // Get timezone from airport code
