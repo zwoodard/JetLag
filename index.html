@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Plan your sleep, caffeine, light exposure, and melatonin to beat jet lag">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>JetLag Planner - Beat Jet Lag Naturally</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="icons/icon-192.svg">
+    <link rel="apple-touch-icon" href="icons/icon-192.svg">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>JetLag Planner</h1>
+            <p class="tagline">Optimize your circadian rhythm for travel</p>
+        </header>
+
+        <main>
+            <!-- Step 1: Sleep Profile -->
+            <section class="card" id="profile-section">
+                <h2>
+                    <span class="step-number">1</span>
+                    Your Sleep Profile
+                </h2>
+                <div class="form-group">
+                    <label for="home-timezone">Home Time Zone</label>
+                    <select id="home-timezone" class="input"></select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="usual-bedtime">Usual Bedtime</label>
+                        <input type="time" id="usual-bedtime" class="input" value="23:00">
+                    </div>
+                    <div class="form-group">
+                        <label for="usual-waketime">Usual Wake Time</label>
+                        <input type="time" id="usual-waketime" class="input" value="07:00">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 2: Flight Information -->
+            <section class="card" id="flights-section">
+                <h2>
+                    <span class="step-number">2</span>
+                    Flight Information
+                </h2>
+                <div id="flights-container">
+                    <!-- Flight cards will be added here -->
+                </div>
+                <button type="button" class="btn btn-secondary" id="add-flight-btn">
+                    + Add Flight
+                </button>
+            </section>
+
+            <!-- Step 3: Generate Plan -->
+            <section class="card" id="generate-section">
+                <h2>
+                    <span class="step-number">3</span>
+                    Generate Your Plan
+                </h2>
+                <div class="form-group">
+                    <label for="plan-start">Start adjusting</label>
+                    <select id="plan-start" class="input">
+                        <option value="0">Day of departure</option>
+                        <option value="1">1 day before</option>
+                        <option value="2" selected>2 days before</option>
+                        <option value="3">3 days before</option>
+                    </select>
+                </div>
+                <div class="button-row">
+                    <button type="button" class="btn btn-primary" id="generate-btn">
+                        Generate Jet Lag Plan
+                    </button>
+                    <button type="button" class="btn btn-ghost" id="share-btn" title="Copy shareable link">
+                        Share Link
+                    </button>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="card hidden" id="results-section">
+                <h2>Your Personalized Plan</h2>
+                <div class="plan-summary" id="plan-summary">
+                    <!-- Summary will be inserted here -->
+                </div>
+                <div class="plan-tabs">
+                    <button class="tab-btn" data-tab="shifter">Shifter</button>
+                    <button class="tab-btn active" data-tab="timeline">Timeline</button>
+                    <button class="tab-btn" data-tab="daily">Daily View</button>
+                </div>
+                <div id="shifter-view" class="tab-content">
+                    <!-- Timeshifter-style view will be rendered here -->
+                </div>
+                <div id="timeline-view" class="tab-content active">
+                    <!-- Timeline will be rendered here -->
+                </div>
+                <div id="daily-view" class="tab-content">
+                    <!-- Daily breakdown will be rendered here -->
+                </div>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            <p>Based on circadian rhythm science. Not medical advice.</p>
+        </footer>
+    </div>
+
+    <!-- Flight Template -->
+    <template id="flight-template">
+        <div class="flight-card" data-flight-index="">
+            <div class="flight-header">
+                <span class="flight-label">Flight <span class="flight-number"></span></span>
+                <button type="button" class="btn-icon remove-flight" title="Remove flight">&times;</button>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Departure</label>
+                    <input type="text" class="input departure-airport" placeholder="Airport (e.g., JFK)">
+                </div>
+                <div class="form-group">
+                    <label>Arrival</label>
+                    <input type="text" class="input arrival-airport" placeholder="Airport (e.g., LHR)">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Departure Date & Time</label>
+                    <input type="datetime-local" class="input departure-datetime">
+                </div>
+                <div class="form-group">
+                    <label>Departure Timezone</label>
+                    <select class="input departure-timezone"></select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Arrival Date & Time</label>
+                    <input type="datetime-local" class="input arrival-datetime">
+                </div>
+                <div class="form-group">
+                    <label>Arrival Timezone</label>
+                    <select class="input arrival-timezone"></select>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script src="js/timezones.js"></script>
+    <script src="js/jet-lag-algorithm.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
