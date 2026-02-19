@@ -268,10 +268,9 @@ test('Algorithm flight duration calculation with timezone correction', () => {
         const sleepDuration = inFlightSleep.endTime - inFlightSleep.startTime;
         console.log(`  Actual in-flight sleep: ${sleepDuration} mins (${(sleepDuration/60).toFixed(1)}h)`);
 
-        // With 13h flight and morning arrival, should be around 3-4 hours
-        // (base 210 for 10-14h flight + 60 for morning arrival = 270, but capped by flight length)
+        // With 13h flight: sleep = flightDuration - 30 (takeoff) - 60 (landing) = 690, capped at 360 (6h)
         expect(sleepDuration).toBeGreaterThan(150); // At least 2.5h
-        expect(sleepDuration).toBeLessThanOrEqual(300); // No more than 5h
+        expect(sleepDuration).toBeLessThanOrEqual(360); // No more than 6h (max cap)
     }
 });
 

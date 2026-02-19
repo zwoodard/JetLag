@@ -116,45 +116,21 @@ class JetLagPlanner {
         const isMorningArrival = arrivalHour >= 5 && arrivalHour <= 14;
         const isEveningArrival = arrivalHour >= 18 || arrivalHour <= 4;
 
-        // Base sleep duration on flight length
-        let baseDuration;
-        const startOffset = 30; // ~30 min after takeoff (reach cruising altitude, settle in)
+        const startOffset = 30;  // ~30 min after takeoff (reach cruising altitude)
+        const landingBuffer = 60; // Wake up ~1h before landing
 
-        if (flightDurationMins < 360) {
-            // 4-6 hours: single sleep cycle
-            baseDuration = 90;
-        } else if (flightDurationMins < 600) {
-            // 6-10 hours: 2-3 hours
-            baseDuration = 150;
-        } else if (flightDurationMins < 840) {
-            // 10-14 hours: 3-4 hours
-            baseDuration = 210;
-        } else {
-            // 14+ hours: 4-5 hours (can do more if needed)
-            baseDuration = 270;
+        // Sleep as much of the flight as possible, ending 1h before landing
+        let finalDuration = flightDurationMins - startOffset - landingBuffer;
+        finalDuration = Math.round(finalDuration / 15) * 15; // Round to 15 min
+
+        // Cap at 6h max (a full night's rest) and 90 min minimum (one sleep cycle)
+        finalDuration = Math.min(finalDuration, 360);
+        finalDuration = Math.max(finalDuration, 90);
+
+        // For evening arrivals, reduce sleep to build sleep pressure for bedtime
+        if (isEveningArrival) {
+            finalDuration = Math.min(finalDuration, 180);
         }
-
-        // Adjust for arrival time
-        if (isMorningArrival) {
-            // Arriving in morning = need to stay awake all day
-            // Sleep MORE on the plane (add 30-60 mins)
-            baseDuration = Math.min(baseDuration + 60, flightDurationMins - startOffset - 60);
-        } else if (isEveningArrival) {
-            // Arriving in evening = can sleep soon after landing
-            // Sleep LESS on the plane to build sleep pressure
-            baseDuration = Math.max(90, baseDuration - 30);
-        }
-
-        // Adjust for direction
-        if (direction === 'east') {
-            // Eastward travel: more important to arrive rested
-            // Slight increase (but already factored into morning arrival logic)
-            baseDuration = Math.min(baseDuration + 15, flightDurationMins - startOffset - 60);
-        }
-
-        // Ensure we don't exceed what fits in the flight
-        const maxSleepDuration = flightDurationMins - startOffset - 45; // 45 min buffer before landing
-        const finalDuration = Math.min(baseDuration, maxSleepDuration);
 
         // Build description
         let description;

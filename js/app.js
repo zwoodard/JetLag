@@ -789,6 +789,24 @@ function renderShifterView(schedule, summary) {
     const todayStr = now.toDateString();
     const currentMins = now.getHours() * 60 + now.getMinutes();
 
+    // Preprocess: collect overnight continuations from each day into the next
+    const dayEvents = schedule.map(day => [...day.events]);
+    for (let i = 0; i < dayEvents.length; i++) {
+        dayEvents[i].forEach(event => {
+            const start = ((event.startTime % 1440) + 1440) % 1440;
+            const end = ((event.endTime % 1440) + 1440) % 1440;
+            if (end > 0 && end < start && i + 1 < dayEvents.length) {
+                // Event crosses midnight — add continuation to next day
+                dayEvents[i + 1].push({
+                    ...event,
+                    startTime: 0,
+                    endTime: end,
+                    _continuation: true, // rendering flag only
+                });
+            }
+        });
+    }
+
     let html = '<div class="shifter-container">';
 
     schedule.forEach((day, dayIndex) => {
@@ -799,26 +817,26 @@ function renderShifterView(schedule, summary) {
         });
         const isToday = day.date.toDateString() === todayStr;
 
-        // Group events by time range for this day
-        const events = [...day.events].sort((a, b) => {
+        // Use preprocessed events (includes continuations from previous day)
+        const events = dayEvents[dayIndex].sort((a, b) => {
             const aStart = ((a.startTime % 1440) + 1440) % 1440;
             const bStart = ((b.startTime % 1440) + 1440) % 1440;
             return aStart - bStart;
         });
 
-        // Find time range for this day's events
+        // Each day spans midnight to midnight — find the active range
         let minTime = 1440, maxTime = 0;
         events.forEach(e => {
             let start = ((e.startTime % 1440) + 1440) % 1440;
             let end = ((e.endTime % 1440) + 1440) % 1440;
-            if (end < start) end = 1440;
+            if (end < start) end = 1440; // Clamp overnight at midnight (continuation is on next day)
             minTime = Math.min(minTime, start);
-            maxTime = Math.max(maxTime, Math.min(end, 1440));
+            maxTime = Math.max(maxTime, end);
         });
 
-        // Round to nearest hour for display
+        // Round to nearest hour, always end at midnight
         const startHour = Math.floor(minTime / 60);
-        const endHour = Math.min(24, Math.ceil(maxTime / 60) + 1);
+        const endHour = 24; // Always end at midnight
         const hours = [];
         for (let h = startHour; h <= endHour; h++) {
             hours.push(h % 24);
@@ -946,7 +964,7 @@ function assignShifterLanes(events, startHour, endHour) {
     const normalized = events.map(e => {
         let start = ((e.startTime % 1440) + 1440) % 1440;
         let end = ((e.endTime % 1440) + 1440) % 1440;
-        if (end < start) end = 1440;
+        if (end < start) end = 1440; // Clamp at midnight (continuation on next day)
         // Clamp to range
         start = Math.max(start, startMins);
         end = Math.min(end, endMins);
