@@ -118,7 +118,7 @@ class JetLagPlanner {
 
         // Base sleep duration on flight length
         let baseDuration;
-        let startOffset = 60; // Default: start 1 hour after takeoff
+        const startOffset = 30; // ~30 min after takeoff (reach cruising altitude, settle in)
 
         if (flightDurationMins < 360) {
             // 4-6 hours: single sleep cycle
@@ -126,15 +126,12 @@ class JetLagPlanner {
         } else if (flightDurationMins < 600) {
             // 6-10 hours: 2-3 hours
             baseDuration = 150;
-            startOffset = 90; // Start a bit later
         } else if (flightDurationMins < 840) {
             // 10-14 hours: 3-4 hours
             baseDuration = 210;
-            startOffset = 120;
         } else {
             // 14+ hours: 4-5 hours (can do more if needed)
             baseDuration = 270;
-            startOffset = 120;
         }
 
         // Adjust for arrival time
@@ -286,17 +283,24 @@ class JetLagPlanner {
 
         // Create flight lookup for blocking times
         // Include pre-calculated duration using proper timezone conversion
-        const flightBlocks = flights.map(f => ({
-            start: new Date(f.departureDateTime),
-            end: new Date(f.arrivalDateTime),
-            flight: f,
-            durationMins: this.calculateFlightDuration(f),
-        }));
+        const flightBlocks = flights.map(f => {
+            const start = new Date(f.departureDateTime);
+            const durationMins = this.calculateFlightDuration(f);
+            return {
+                start,
+                end: new Date(f.arrivalDateTime),
+                // Actual end = departure + duration (correct for date-line crossings
+                // where wall-clock arrival appears "before" departure)
+                actualEnd: new Date(start.getTime() + durationMins * 60 * 1000),
+                flight: f,
+                durationMins,
+            };
+        });
 
         // Check if a time range conflicts with any flight
         const conflictsWithFlight = (start, end) => {
             return flightBlocks.some(fb => {
-                return (start < fb.end && end > fb.start);
+                return (start < fb.actualEnd && end > fb.start);
             });
         };
 
