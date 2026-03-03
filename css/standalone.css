@@ -1,0 +1,127 @@
+/* JetLag Planner — Standalone page styles (GitHub Pages)
+ * Page-level resets, header, footer, and background.
+ * Not used by the WordPress embed.
+ */
+
+/* Signal to app.js that this is the standalone build */
+:root { --jetlag-standalone: 1; }
+
+/* Page-level resets */
+html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background: #0a0a12;
+    color: #ffffff;
+    line-height: 1.5;
+    min-height: 100vh;
+    margin: 0;
+    background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(255, 107, 53, 0.15), transparent),
+        radial-gradient(ellipse 60% 40% at 100% 0%, rgba(0, 212, 170, 0.1), transparent);
+}
+
+/* Full-height layout */
+.jetlag-planner .app-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.jetlag-planner .app-header {
+    text-align: center;
+    padding: 3rem 0 2rem;
+    position: relative;
+}
+
+.jetlag-planner .app-header::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, var(--jlp-primary-glow), transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.jetlag-planner .app-header h1 {
+    position: relative;
+    font-size: 2.75rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--jlp-text);
+    text-transform: uppercase;
+}
+
+.jetlag-planner .app-header h1::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 4px;
+    background: linear-gradient(90deg, var(--jlp-primary), var(--jlp-accent));
+    margin: 0.75rem auto 0;
+    border-radius: 2px;
+}
+
+.jetlag-planner .tagline {
+    position: relative;
+    color: var(--jlp-text-secondary);
+    font-size: 1rem;
+    margin-top: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
+/* Footer */
+.jetlag-planner .app-footer {
+    margin-top: auto;
+    padding: 2.5rem 0;
+    text-align: center;
+}
+
+.jetlag-planner .app-footer p {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--jlp-text-muted);
+    letter-spacing: 0.02em;
+}
+
+/* Print styles */
+@media print {
+    body {
+        background: white;
+        color: black;
+    }
+
+    .jetlag-planner .card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+
+    .jetlag-planner .btn,
+    .jetlag-planner #add-flight-btn,
+    .jetlag-planner .plan-tabs,
+    .jetlag-planner .saved-indicator {
+        display: none;
+    }
+
+    .jetlag-planner .tab-content {
+        display: block !important;
+    }
+
+    .jetlag-planner .timeline-bar {
+        display: block !important;
+    }
+
+    .jetlag-planner .timeline-vertical {
+        display: none !important;
+    }
+}

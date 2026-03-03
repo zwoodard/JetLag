@@ -1,20 +1,33 @@
 /**
  * JetLag Planner - Main Application
+ *
+ * Scope-aware: all DOM queries go through _appRoot so the app can run
+ * standalone (GitHub Pages) or embedded in WordPress.
  */
 
 const STORAGE_KEY = 'jetlag-planner-data';
 const URL_PARAM_KEY = 'd'; // Short key for URL param
 
-document.addEventListener('DOMContentLoaded', () => {
+// Root element for all DOM queries (set by initJetLagApp)
+var _appRoot = null;
+var _saveTimeout = null;
+
+/**
+ * Mount the app inside a given container element.
+ * For standalone pages pass the .jetlag-planner wrapper (or document).
+ * For WordPress the shortcode wrapper is passed automatically.
+ */
+function initJetLagApp(rootElement) {
+    _appRoot = rootElement || document;
     initializeApp();
-});
+}
 
 function initializeApp() {
     // Populate timezone selects
     populateTimezoneSelects();
 
     // Set default home timezone
-    const homeTimezoneSelect = document.getElementById('home-timezone');
+    const homeTimezoneSelect = _appRoot.querySelector('#home-timezone');
     const detectedTz = detectUserTimezone();
     if (homeTimezoneSelect) {
         homeTimezoneSelect.value = detectedTz;
@@ -33,26 +46,26 @@ function initializeApp() {
     }
 
     // Event listeners
-    document.getElementById('add-flight-btn').addEventListener('click', () => {
+    _appRoot.querySelector('#add-flight-btn').addEventListener('click', () => {
         addFlight();
         saveToStorage();
     });
-    document.getElementById('generate-btn').addEventListener('click', generatePlan);
-    document.getElementById('share-btn').addEventListener('click', copyShareLink);
+    _appRoot.querySelector('#generate-btn').addEventListener('click', generatePlan);
+    _appRoot.querySelector('#share-btn').addEventListener('click', copyShareLink);
 
     // Auto-save on input changes (change event for selects/datetime)
-    document.addEventListener('change', (e) => {
+    _appRoot.addEventListener('change', (e) => {
         if (e.target.closest('#profile-section, #flights-section, #generate-section')) {
             saveToStorage();
         }
     });
 
     // Also save on input event for text fields (fires on every keystroke)
-    document.addEventListener('input', (e) => {
+    _appRoot.addEventListener('input', (e) => {
         if (e.target.closest('#profile-section, #flights-section, #generate-section')) {
             // Debounce to avoid excessive saves
-            clearTimeout(window.saveTimeout);
-            window.saveTimeout = setTimeout(saveToStorage, 500);
+            clearTimeout(_saveTimeout);
+            _saveTimeout = setTimeout(saveToStorage, 500);
         }
     });
 
@@ -62,20 +75,26 @@ function initializeApp() {
     });
 
     // Tab switching
-    document.querySelectorAll('.tab-btn').forEach(btn => {
+    _appRoot.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const tabName = e.target.dataset.tab;
             switchTab(tabName);
         });
     });
 
-    // Register service worker
-    if ('serviceWorker' in navigator) {
+    // Register service worker (standalone only, not when embedded)
+    if (typeof JETLAG_STANDALONE !== 'undefined' && 'serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js')
             .then(reg => console.log('Service Worker registered'))
             .catch(err => console.log('Service Worker registration failed:', err));
     }
 }
+
+// Auto-init for standalone pages
+document.addEventListener('DOMContentLoaded', () => {
+    const el = document.querySelector('.jetlag-planner');
+    if (el && !_appRoot) initJetLagApp(el);
+});
 
 // ============ URL Encoding/Decoding ============
 
@@ -174,10 +193,10 @@ function loadFromURL() {
 
 function getShareableURL() {
     const data = {
-        homeTimezone: document.getElementById('home-timezone').value,
-        usualBedtime: document.getElementById('usual-bedtime').value,
-        usualWaketime: document.getElementById('usual-waketime').value,
-        daysBeforeStart: document.getElementById('plan-start').value,
+        homeTimezone: _appRoot.querySelector('#home-timezone').value,
+        usualBedtime: _appRoot.querySelector('#usual-bedtime').value,
+        usualWaketime: _appRoot.querySelector('#usual-waketime').value,
+        daysBeforeStart: _appRoot.querySelector('#plan-start').value,
         flights: collectFlightData(),
     };
     const encoded = encodeDataForURL(data);
@@ -191,7 +210,7 @@ function getShareableURL() {
 
 async function copyShareLink() {
     const url = getShareableURL();
-    const btn = document.getElementById('share-btn');
+    const btn = _appRoot.querySelector('#share-btn');
     const originalText = btn.textContent;
 
     try {
@@ -229,10 +248,10 @@ async function copyShareLink() {
 
 function saveToStorage() {
     const data = {
-        homeTimezone: document.getElementById('home-timezone').value,
-        usualBedtime: document.getElementById('usual-bedtime').value,
-        usualWaketime: document.getElementById('usual-waketime').value,
-        daysBeforeStart: document.getElementById('plan-start').value,
+        homeTimezone: _appRoot.querySelector('#home-timezone').value,
+        usualBedtime: _appRoot.querySelector('#usual-bedtime').value,
+        usualWaketime: _appRoot.querySelector('#usual-waketime').value,
+        daysBeforeStart: _appRoot.querySelector('#plan-start').value,
         flights: collectFlightData(),
         savedAt: new Date().toISOString(),
     };
@@ -268,16 +287,16 @@ function loadFromStorage() {
 function restoreSavedData(data) {
     // Restore profile
     if (data.homeTimezone) {
-        document.getElementById('home-timezone').value = data.homeTimezone;
+        _appRoot.querySelector('#home-timezone').value = data.homeTimezone;
     }
     if (data.usualBedtime) {
-        document.getElementById('usual-bedtime').value = data.usualBedtime;
+        _appRoot.querySelector('#usual-bedtime').value = data.usualBedtime;
     }
     if (data.usualWaketime) {
-        document.getElementById('usual-waketime').value = data.usualWaketime;
+        _appRoot.querySelector('#usual-waketime').value = data.usualWaketime;
     }
     if (data.daysBeforeStart) {
-        document.getElementById('plan-start').value = data.daysBeforeStart;
+        _appRoot.querySelector('#plan-start').value = data.daysBeforeStart;
     }
 
     // Restore flights
@@ -291,7 +310,7 @@ function restoreSavedData(data) {
 }
 
 function showSavedIndicator(message = 'Restored') {
-    const header = document.querySelector('#flights-section h2');
+    const header = _appRoot.querySelector('#flights-section h2');
     if (header && !header.querySelector('.saved-indicator')) {
         const indicator = document.createElement('span');
         indicator.className = 'saved-indicator';
@@ -320,8 +339,8 @@ function clearStorage() {
 let flightCount = 0;
 
 function addFlight(flightData = null) {
-    const template = document.getElementById('flight-template');
-    const container = document.getElementById('flights-container');
+    const template = _appRoot.querySelector('#flight-template');
+    const container = _appRoot.querySelector('#flights-container');
 
     const flightCard = template.content.cloneNode(true);
     const card = flightCard.querySelector('.flight-card');
@@ -397,7 +416,7 @@ function addFlight(flightData = null) {
 }
 
 function renumberFlights() {
-    const cards = document.querySelectorAll('.flight-card');
+    const cards = _appRoot.querySelectorAll('.flight-card');
     cards.forEach((card, index) => {
         card.dataset.flightIndex = index + 1;
         card.querySelector('.flight-number').textContent = index + 1;
@@ -416,7 +435,7 @@ function formatDateTimeLocal(date) {
 
 function collectFlightData() {
     const flights = [];
-    const cards = document.querySelectorAll('.flight-card');
+    const cards = _appRoot.querySelectorAll('.flight-card');
 
     cards.forEach(card => {
         flights.push({
@@ -471,11 +490,11 @@ function generatePlan() {
 
     // Collect user profile
     const config = {
-        homeTimezone: document.getElementById('home-timezone').value,
-        usualBedtime: document.getElementById('usual-bedtime').value,
-        usualWaketime: document.getElementById('usual-waketime').value,
+        homeTimezone: _appRoot.querySelector('#home-timezone').value,
+        usualBedtime: _appRoot.querySelector('#usual-bedtime').value,
+        usualWaketime: _appRoot.querySelector('#usual-waketime').value,
         flights: flights,
-        daysBeforeStart: parseInt(document.getElementById('plan-start').value),
+        daysBeforeStart: parseInt(_appRoot.querySelector('#plan-start').value),
     };
 
     // Generate plan
@@ -491,7 +510,7 @@ function generatePlan() {
 }
 
 function displayPlan(plan) {
-    const resultsSection = document.getElementById('results-section');
+    const resultsSection = _appRoot.querySelector('#results-section');
     resultsSection.classList.remove('hidden');
 
     // Scroll to results
@@ -540,7 +559,7 @@ function displayPlan(plan) {
             </div>
         </div>
     `;
-    document.getElementById('plan-summary').innerHTML = summaryHtml;
+    _appRoot.querySelector('#plan-summary').innerHTML = summaryHtml;
 
     // Timeline view
     renderTimeline(plan.schedule);
@@ -555,17 +574,17 @@ function displayPlan(plan) {
 // ============ Timeline Rendering ============
 
 function renderTimeline(schedule) {
-    const container = document.getElementById('timeline-view');
+    const container = _appRoot.querySelector('#timeline-view');
 
     const legendHtml = `
         <div class="legend">
-            <div class="legend-item"><div class="legend-color" style="background: var(--color-sleep)"></div> Sleep</div>
-            <div class="legend-item"><div class="legend-color" style="background: var(--color-light-seek)"></div> Seek Light</div>
-            <div class="legend-item"><div class="legend-color" style="background: var(--color-light-avoid); border: 2px dashed var(--color-text-muted)"></div> Avoid Light</div>
-            <div class="legend-item"><div class="legend-color" style="background: var(--color-caffeine)"></div> Caffeine OK</div>
-            <div class="legend-item"><div class="legend-color" style="background: var(--color-melatonin)"></div> Melatonin</div>
-            <div class="legend-item"><div class="legend-color" style="background: var(--color-nap)"></div> Nap</div>
-            <div class="legend-item"><div class="legend-color" style="background: var(--color-flight)"></div> Flight</div>
+            <div class="legend-item"><div class="legend-color" style="background: var(--jlp-sleep)"></div> Sleep</div>
+            <div class="legend-item"><div class="legend-color" style="background: var(--jlp-light-seek)"></div> Seek Light</div>
+            <div class="legend-item"><div class="legend-color" style="background: var(--jlp-light-avoid); border: 2px dashed var(--jlp-text-muted)"></div> Avoid Light</div>
+            <div class="legend-item"><div class="legend-color" style="background: var(--jlp-caffeine)"></div> Caffeine OK</div>
+            <div class="legend-item"><div class="legend-color" style="background: var(--jlp-melatonin)"></div> Melatonin</div>
+            <div class="legend-item"><div class="legend-color" style="background: var(--jlp-nap)"></div> Nap</div>
+            <div class="legend-item"><div class="legend-color" style="background: var(--jlp-flight)"></div> Flight</div>
         </div>
     `;
 
@@ -782,7 +801,7 @@ function renderVerticalTimeline(events, isToday = false, currentMins = 0) {
 // ============ Shifter View (Timeshifter-style) ============
 
 function renderShifterView(schedule, summary) {
-    const container = document.getElementById('shifter-view');
+    const container = _appRoot.querySelector('#shifter-view');
 
     // Get current time for "Now" indicator
     const now = new Date();
@@ -1049,7 +1068,7 @@ function formatTimezoneShort(tz) {
 }
 
 function showShifterPopup(element) {
-    const popup = document.getElementById('shifter-popup');
+    const popup = _appRoot.querySelector('#shifter-popup');
     const type = element.dataset.type;
     const start = element.dataset.start;
     const end = element.dataset.end;
@@ -1115,7 +1134,7 @@ function showShifterPopup(element) {
 }
 
 function hideShifterPopup() {
-    const popup = document.getElementById('shifter-popup');
+    const popup = _appRoot.querySelector('#shifter-popup');
     popup.classList.remove('visible');
 }
 
@@ -1148,7 +1167,7 @@ function getEventLabelText(type) {
 // ============ Daily View Rendering ============
 
 function renderDailyView(schedule) {
-    const container = document.getElementById('daily-view');
+    const container = _appRoot.querySelector('#daily-view');
     let html = '';
 
     schedule.forEach(day => {
@@ -1204,11 +1223,11 @@ function formatTimeDisplay(minutes) {
 }
 
 function switchTab(tabName) {
-    document.querySelectorAll('.tab-btn').forEach(btn => {
+    _appRoot.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tab === tabName);
     });
 
-    document.querySelectorAll('.tab-content').forEach(content => {
+    _appRoot.querySelectorAll('.tab-content').forEach(content => {
         content.classList.toggle('active', content.id === `${tabName}-view`);
     });
 }

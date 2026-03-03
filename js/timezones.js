@@ -781,8 +781,10 @@ const AIRPORTS = {
 };
 
 // Populate timezone select elements
+// Uses _appRoot (set by app.js initJetLagApp) to scope queries
 function populateTimezoneSelects() {
-    const selects = document.querySelectorAll('select[id$="-timezone"], select.departure-timezone, select.arrival-timezone');
+    const root = (typeof _appRoot !== 'undefined' && _appRoot) ? _appRoot : document;
+    const selects = root.querySelectorAll('select[id$="-timezone"], select.departure-timezone, select.arrival-timezone');
     selects.forEach(select => {
         if (select.options.length > 1) return; // Already populated
 

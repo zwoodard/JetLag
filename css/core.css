@@ -1,0 +1,1262 @@
+/* JetLag Planner — Shared Core Styles
+ * All selectors scoped under .jetlag-planner
+ * Used by both standalone (GitHub Pages) and WordPress embed.
+ *
+ * Theme-adaptive by default (inherits page fonts/colors).
+ * Add .jetlag-planner--dark for the original dark appearance.
+ */
+
+/* ============ Variables & Base ============ */
+
+.jetlag-planner {
+    /* Theme-adaptive defaults — blend with any light/neutral page */
+    --jlp-bg: transparent;
+    --jlp-surface: rgba(0, 0, 0, 0.03);
+    --jlp-surface-light: rgba(0, 0, 0, 0.05);
+    --jlp-surface-elevated: rgba(0, 0, 0, 0.08);
+
+    --jlp-primary: #ff6b35;
+    --jlp-primary-glow: rgba(255, 107, 53, 0.2);
+    --jlp-secondary: #00d4aa;
+    --jlp-accent: #ffd23f;
+
+    --jlp-text: currentColor;
+    --jlp-text-secondary: rgba(0, 0, 0, 0.65);
+    --jlp-text-muted: rgba(0, 0, 0, 0.4);
+    --jlp-border: rgba(0, 0, 0, 0.12);
+
+    /* Activity colors — semantic, same in all themes */
+    --jlp-sleep: #4f46e5;
+    --jlp-light-seek: #ffd23f;
+    --jlp-light-avoid: #e8e8f0;
+    --jlp-caffeine: #00d4aa;
+    --jlp-melatonin: #c084fc;
+    --jlp-nap: #818cf8;
+    --jlp-flight: #ff6b35;
+
+    --jlp-radius: 16px;
+    --jlp-radius-sm: 10px;
+    --jlp-radius-xs: 6px;
+    --jlp-transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    font-family: inherit;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Dark mode — restores original dark appearance */
+.jetlag-planner--dark {
+    --jlp-bg: #0a0a12;
+    --jlp-surface: #12121f;
+    --jlp-surface-light: #1a1a2d;
+    --jlp-surface-elevated: #222238;
+    --jlp-primary-glow: rgba(255, 107, 53, 0.3);
+    --jlp-text: #ffffff;
+    --jlp-text-secondary: #b8b8d0;
+    --jlp-text-muted: #6b6b8a;
+    --jlp-border: #2a2a45;
+    --jlp-light-avoid: #1e1e35;
+
+    color: var(--jlp-text);
+    background: var(--jlp-bg);
+}
+
+/* ============ Scoped Reset ============ */
+
+.jetlag-planner *,
+.jetlag-planner *::before,
+.jetlag-planner *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* ============ App Container ============ */
+
+.jetlag-planner .app-container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+/* ============ Cards ============ */
+
+.jetlag-planner .card {
+    background: var(--jlp-surface);
+    border: 1px solid var(--jlp-border);
+    border-radius: var(--jlp-radius);
+    padding: 1.75rem;
+    margin-bottom: 1.25rem;
+    position: relative;
+    overflow: hidden;
+    animation: jlp-fadeIn 0.4s ease;
+}
+
+.jetlag-planner .card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--jlp-primary), var(--jlp-secondary));
+    opacity: 0;
+    transition: opacity var(--jlp-transition);
+}
+
+.jetlag-planner .card:hover::before {
+    opacity: 1;
+}
+
+.jetlag-planner .card h2 {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.jetlag-planner .step-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--jlp-primary), #ff8c5a);
+    border-radius: var(--jlp-radius-xs);
+    font-size: 1rem;
+    font-weight: 800;
+    color: white;
+    box-shadow: 0 4px 12px var(--jlp-primary-glow);
+}
+
+/* ============ Forms ============ */
+
+.jetlag-planner .form-group {
+    margin-bottom: 1.25rem;
+}
+
+.jetlag-planner .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.jetlag-planner .form-group label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--jlp-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+}
+
+.jetlag-planner .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 500px) {
+    .jetlag-planner .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.jetlag-planner .input {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--jlp-text);
+    background: var(--jlp-surface-light);
+    border: 2px solid var(--jlp-border);
+    border-radius: var(--jlp-radius-sm);
+    transition: all var(--jlp-transition);
+    font-family: inherit;
+}
+
+.jetlag-planner .input:hover {
+    border-color: rgba(0, 0, 0, 0.2);
+}
+
+.jetlag-planner--dark .input:hover {
+    border-color: #3a3a55;
+}
+
+.jetlag-planner .input:focus {
+    outline: none;
+    border-color: var(--jlp-primary);
+    background: var(--jlp-surface-elevated);
+    box-shadow: 0 0 0 4px var(--jlp-primary-glow);
+}
+
+.jetlag-planner .input::placeholder {
+    color: var(--jlp-text-muted);
+    font-weight: 400;
+}
+
+.jetlag-planner select.input {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='%236b6b8a' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.875rem center;
+    padding-right: 2.75rem;
+}
+
+/* ============ Buttons ============ */
+
+.jetlag-planner .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem 1.75rem;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: none;
+    border-radius: var(--jlp-radius-sm);
+    cursor: pointer;
+    transition: all var(--jlp-transition);
+    font-family: inherit;
+}
+
+.jetlag-planner .btn-primary {
+    width: 100%;
+    background: linear-gradient(135deg, var(--jlp-primary), #ff8c5a);
+    color: white;
+    box-shadow: 0 4px 20px var(--jlp-primary-glow);
+}
+
+.jetlag-planner .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px var(--jlp-primary-glow);
+}
+
+.jetlag-planner .btn-primary:active {
+    transform: translateY(0);
+}
+
+.jetlag-planner .btn-secondary {
+    width: 100%;
+    background: transparent;
+    color: var(--jlp-text-secondary);
+    border: 2px dashed var(--jlp-border);
+}
+
+.jetlag-planner .btn-secondary:hover {
+    border-color: var(--jlp-primary);
+    border-style: solid;
+    color: var(--jlp-primary);
+    background: rgba(255, 107, 53, 0.1);
+}
+
+.jetlag-planner .btn-small {
+    padding: 0.625rem 1rem;
+    font-size: 0.8125rem;
+}
+
+.jetlag-planner .btn-ghost {
+    background: var(--jlp-surface-light);
+    color: var(--jlp-text-secondary);
+    border: 1px solid var(--jlp-border);
+    width: auto;
+}
+
+.jetlag-planner .btn-ghost:hover {
+    background: var(--jlp-surface-elevated);
+    color: var(--jlp-text);
+}
+
+.jetlag-planner .btn-ghost.success {
+    background: var(--jlp-caffeine);
+    color: #1a1a2d;
+    border-color: var(--jlp-caffeine);
+}
+
+.jetlag-planner .button-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.jetlag-planner .button-row .btn-primary {
+    flex: 1;
+    min-width: 200px;
+}
+
+.jetlag-planner .button-row .btn-ghost {
+    flex: 0 0 auto;
+}
+
+.jetlag-planner .btn-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    font-size: 1.25rem;
+    line-height: 1;
+    background: var(--jlp-surface-light);
+    color: var(--jlp-text-muted);
+    border: 1px solid var(--jlp-border);
+    border-radius: var(--jlp-radius-xs);
+    cursor: pointer;
+    transition: all var(--jlp-transition);
+}
+
+.jetlag-planner .btn-icon:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+/* ============ Flight Cards ============ */
+
+.jetlag-planner .flight-card {
+    background: var(--jlp-surface-light);
+    border-radius: var(--jlp-radius-sm);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    border: 2px solid var(--jlp-border);
+    position: relative;
+    animation: jlp-slideIn 0.3s ease;
+}
+
+.jetlag-planner .flight-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, var(--jlp-primary), var(--jlp-accent));
+    border-radius: 2px 0 0 2px;
+}
+
+.jetlag-planner .flight-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    padding-left: 0.5rem;
+}
+
+.jetlag-planner .flight-label {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--jlp-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.jetlag-planner #add-flight-btn {
+    margin-top: 0.75rem;
+}
+
+/* ============ Results Header ============ */
+
+.jetlag-planner .results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.jetlag-planner .results-header h2 {
+    margin-bottom: 0;
+}
+
+/* ============ Tabs ============ */
+
+.jetlag-planner .plan-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    padding: 0.25rem;
+    background: var(--jlp-surface-light);
+    border-radius: var(--jlp-radius-sm);
+}
+
+.jetlag-planner .tab-btn {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--jlp-text-muted);
+    background: transparent;
+    border: none;
+    border-radius: var(--jlp-radius-xs);
+    cursor: pointer;
+    transition: all var(--jlp-transition);
+    font-family: inherit;
+}
+
+.jetlag-planner .tab-btn:hover {
+    color: var(--jlp-text);
+}
+
+.jetlag-planner .tab-btn.active {
+    background: var(--jlp-primary);
+    color: white;
+    box-shadow: 0 2px 8px var(--jlp-primary-glow);
+}
+
+.jetlag-planner .tab-content {
+    display: none;
+}
+
+.jetlag-planner .tab-content.active {
+    display: block;
+}
+
+/* ============ Plan Summary ============ */
+
+.jetlag-planner .plan-summary {
+    background: linear-gradient(135deg, var(--jlp-surface-light), var(--jlp-surface-elevated));
+    border: 1px solid var(--jlp-border);
+    border-radius: var(--jlp-radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.jetlag-planner .plan-summary h3 {
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--jlp-text-muted);
+    margin-bottom: 0.75rem;
+}
+
+.jetlag-planner .plan-summary p {
+    color: var(--jlp-text);
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.jetlag-planner .plan-summary strong {
+    color: var(--jlp-primary);
+}
+
+.jetlag-planner .summary-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--jlp-border);
+}
+
+.jetlag-planner .stat {
+    text-align: center;
+}
+
+.jetlag-planner .stat-value {
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--jlp-primary), var(--jlp-accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+}
+
+.jetlag-planner .stat-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--jlp-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 0.25rem;
+}
+
+/* ============ Timeline ============ */
+
+.jetlag-planner .timeline-day {
+    margin-bottom: 2rem;
+}
+
+.jetlag-planner .timeline-day-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--jlp-border);
+}
+
+.jetlag-planner .timeline-day-title {
+    font-weight: 700;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.jetlag-planner .timeline-day-date {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--jlp-text-muted);
+}
+
+.jetlag-planner .timeline-bar {
+    position: relative;
+    height: 56px;
+    background: var(--jlp-surface-light);
+    border-radius: var(--jlp-radius-sm);
+    overflow: visible;
+    border: 1px solid var(--jlp-border);
+    margin-top: 24px;
+}
+
+.jetlag-planner .timeline-event {
+    position: absolute;
+    border-radius: var(--jlp-radius-xs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.5625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: white;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 4px;
+    min-width: 20px;
+    transition: transform var(--jlp-transition), box-shadow var(--jlp-transition), opacity var(--jlp-transition);
+    box-sizing: border-box;
+}
+
+.jetlag-planner .timeline-event:hover {
+    z-index: 15;
+    filter: brightness(1.15);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.jetlag-planner .timeline-event.sleep {
+    background: linear-gradient(135deg, var(--jlp-sleep), #6366f1);
+}
+
+.jetlag-planner .timeline-event.light-seek {
+    background: linear-gradient(135deg, var(--jlp-light-seek), #ffb800);
+    color: #1a1a2d;
+}
+
+.jetlag-planner .timeline-event.light-avoid {
+    background: var(--jlp-light-avoid);
+    border: 2px dashed var(--jlp-text-muted);
+}
+
+.jetlag-planner .timeline-event.caffeine {
+    background: linear-gradient(135deg, var(--jlp-caffeine), #00b894);
+    color: #1a1a2d;
+}
+
+.jetlag-planner .timeline-event.melatonin {
+    background: linear-gradient(135deg, var(--jlp-melatonin), #a855f7);
+}
+
+.jetlag-planner .timeline-event.nap {
+    background: linear-gradient(135deg, var(--jlp-nap), #6366f1);
+}
+
+.jetlag-planner .timeline-event.flight {
+    background: linear-gradient(135deg, var(--jlp-flight), #ff8c5a);
+}
+
+/* Now indicator */
+.jetlag-planner .timeline-now {
+    position: absolute;
+    top: -24px;
+    bottom: 0;
+    z-index: 20;
+    pointer-events: none;
+}
+
+.jetlag-planner .timeline-now-line {
+    position: absolute;
+    top: 22px;
+    bottom: 0;
+    left: 0;
+    width: 3px;
+    background: #ff3b5c;
+    box-shadow: 0 0 8px rgba(255, 59, 92, 0.6), 0 0 16px rgba(255, 59, 92, 0.3);
+    border-radius: 1px;
+}
+
+.jetlag-planner .timeline-now-label {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ff3b5c;
+    color: white;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    box-shadow: 0 2px 8px rgba(255, 59, 92, 0.4);
+}
+
+.jetlag-planner .timeline-day-today {
+    position: relative;
+}
+
+.jetlag-planner .timeline-day-today .timeline-day-header {
+    border-bottom-color: #ff3b5c;
+}
+
+.jetlag-planner .today-badge {
+    display: inline-block;
+    background: #ff3b5c;
+    color: white;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+}
+
+/* Vertical timeline for mobile */
+@media (max-width: 600px) {
+    .jetlag-planner .timeline-bar {
+        display: none;
+    }
+
+    .jetlag-planner .timeline-vertical {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .jetlag-planner .timeline-vertical-event {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.875rem 1rem;
+        border-radius: var(--jlp-radius-sm);
+        border-left: 4px solid;
+    }
+
+    .jetlag-planner .timeline-vertical-event.sleep {
+        border-color: var(--jlp-sleep);
+        background: rgba(79, 70, 229, 0.15);
+    }
+    .jetlag-planner .timeline-vertical-event.light-seek {
+        border-color: var(--jlp-light-seek);
+        background: rgba(255, 210, 63, 0.15);
+    }
+    .jetlag-planner .timeline-vertical-event.light-avoid {
+        border-color: var(--jlp-text-muted);
+        background: rgba(107, 107, 138, 0.1);
+    }
+    .jetlag-planner .timeline-vertical-event.caffeine {
+        border-color: var(--jlp-caffeine);
+        background: rgba(0, 212, 170, 0.15);
+    }
+    .jetlag-planner .timeline-vertical-event.melatonin {
+        border-color: var(--jlp-melatonin);
+        background: rgba(192, 132, 252, 0.15);
+    }
+    .jetlag-planner .timeline-vertical-event.nap {
+        border-color: var(--jlp-nap);
+        background: rgba(129, 140, 248, 0.15);
+    }
+    .jetlag-planner .timeline-vertical-event.flight {
+        border-color: var(--jlp-flight);
+        background: rgba(255, 107, 53, 0.2);
+    }
+
+    .jetlag-planner .timeline-vertical-time {
+        min-width: 90px;
+        font-size: 0.8125rem;
+        font-weight: 700;
+        color: var(--jlp-text-secondary);
+    }
+
+    .jetlag-planner .timeline-vertical-label {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--jlp-text);
+    }
+
+    .jetlag-planner .timeline-vertical-desc {
+        font-size: 0.75rem;
+        color: var(--jlp-text-muted);
+        margin-top: 0.125rem;
+    }
+
+    /* Now indicator - vertical */
+    .jetlag-planner .timeline-vertical-now {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        border-radius: var(--jlp-radius-sm);
+        background: rgba(255, 59, 92, 0.15);
+        border: 2px solid #ff3b5c;
+        position: relative;
+    }
+
+    .jetlag-planner .timeline-vertical-now::before {
+        content: '';
+        position: absolute;
+        left: -2px;
+        top: -8px;
+        bottom: -8px;
+        width: 4px;
+        background: #ff3b5c;
+        border-radius: 2px;
+        box-shadow: 0 0 8px rgba(255, 59, 92, 0.6);
+    }
+
+    .jetlag-planner .timeline-vertical-now-line {
+        display: none;
+    }
+
+    .jetlag-planner .timeline-vertical-now-label {
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: #ff3b5c;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .jetlag-planner .timeline-vertical-now.standalone {
+        justify-content: center;
+        margin-bottom: 0.75rem;
+    }
+
+    /* Section headers */
+    .jetlag-planner .timeline-section-header {
+        font-size: 0.6875rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--jlp-text-muted);
+        padding: 0.5rem 0;
+        margin-top: 0.5rem;
+    }
+
+    .jetlag-planner .timeline-section-header.active-header {
+        color: #ff3b5c;
+        font-size: 0.75rem;
+        margin-top: 0;
+    }
+
+    .jetlag-planner .timeline-section-header.past-header {
+        color: var(--jlp-text-muted);
+        opacity: 0.7;
+    }
+
+    /* Active event styling */
+    .jetlag-planner .timeline-vertical-event.active-now {
+        border-width: 2px;
+        box-shadow: 0 0 0 2px rgba(255, 59, 92, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+        position: relative;
+    }
+
+    .jetlag-planner .timeline-vertical-event.active-now::after {
+        content: 'NOW';
+        position: absolute;
+        top: -8px;
+        right: 8px;
+        background: #ff3b5c;
+        color: white;
+        font-size: 0.5625rem;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 3px;
+        letter-spacing: 0.05em;
+    }
+
+    /* Past event styling */
+    .jetlag-planner .timeline-vertical-event.past-event {
+        opacity: 0.5;
+    }
+
+    .jetlag-planner .timeline-vertical-event.past-event .timeline-vertical-label,
+    .jetlag-planner .timeline-vertical-event.past-event .timeline-vertical-time {
+        text-decoration: line-through;
+        text-decoration-color: var(--jlp-text-muted);
+    }
+}
+
+@media (min-width: 601px) {
+    .jetlag-planner .timeline-vertical {
+        display: none;
+    }
+}
+
+/* ============ Daily View ============ */
+
+.jetlag-planner .daily-schedule {
+    margin-bottom: 2rem;
+}
+
+.jetlag-planner .daily-header {
+    font-weight: 700;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--jlp-border);
+}
+
+.jetlag-planner .daily-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: var(--jlp-radius-sm);
+    border-left: 4px solid var(--jlp-border);
+    transition: all var(--jlp-transition);
+}
+
+.jetlag-planner .daily-item:hover {
+    filter: brightness(1.1);
+}
+
+.jetlag-planner .daily-item.sleep {
+    border-left-color: var(--jlp-sleep);
+    background: rgba(79, 70, 229, 0.15);
+}
+.jetlag-planner .daily-item.light-seek {
+    border-left-color: var(--jlp-light-seek);
+    background: rgba(255, 210, 63, 0.15);
+}
+.jetlag-planner .daily-item.light-avoid {
+    border-left-color: var(--jlp-text-muted);
+    background: rgba(107, 107, 138, 0.1);
+}
+.jetlag-planner .daily-item.caffeine {
+    border-left-color: var(--jlp-caffeine);
+    background: rgba(0, 212, 170, 0.15);
+}
+.jetlag-planner .daily-item.melatonin {
+    border-left-color: var(--jlp-melatonin);
+    background: rgba(192, 132, 252, 0.15);
+}
+.jetlag-planner .daily-item.nap {
+    border-left-color: var(--jlp-nap);
+    background: rgba(129, 140, 248, 0.15);
+}
+.jetlag-planner .daily-item.flight {
+    border-left-color: var(--jlp-flight);
+    background: rgba(255, 107, 53, 0.2);
+}
+
+.jetlag-planner .daily-time {
+    min-width: 110px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--jlp-text-secondary);
+}
+
+.jetlag-planner .daily-activity {
+    flex: 1;
+}
+
+.jetlag-planner .activity-type {
+    display: inline-block;
+    padding: 0.25rem 0.625rem;
+    border-radius: var(--jlp-radius-xs);
+    font-size: 0.6875rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.375rem;
+}
+
+.jetlag-planner .activity-type.sleep { background: var(--jlp-sleep); color: white; }
+.jetlag-planner .activity-type.light-seek { background: var(--jlp-light-seek); color: #1a1a2d; }
+.jetlag-planner .activity-type.light-avoid { background: var(--jlp-light-avoid); border: 1px solid var(--jlp-text-muted); }
+.jetlag-planner .activity-type.caffeine { background: var(--jlp-caffeine); color: #1a1a2d; }
+.jetlag-planner .activity-type.melatonin { background: var(--jlp-melatonin); color: white; }
+.jetlag-planner .activity-type.nap { background: var(--jlp-nap); color: white; }
+.jetlag-planner .activity-type.flight { background: var(--jlp-flight); color: white; }
+
+.jetlag-planner .activity-description {
+    font-size: 0.875rem;
+    color: var(--jlp-text-muted);
+    line-height: 1.4;
+}
+
+/* ============ Legend ============ */
+
+.jetlag-planner .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    margin-bottom: 1.25rem;
+    padding: 1rem;
+    background: var(--jlp-surface-light);
+    border-radius: var(--jlp-radius-sm);
+    border: 1px solid var(--jlp-border);
+}
+
+.jetlag-planner .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--jlp-text-secondary);
+}
+
+.jetlag-planner .legend-color {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+}
+
+/* ============ Shifter View ============ */
+
+.jetlag-planner .shifter-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.jetlag-planner .shifter-day {
+    border-bottom: 1px solid var(--jlp-border);
+}
+
+.jetlag-planner .shifter-day:last-child {
+    border-bottom: none;
+}
+
+.jetlag-planner .shifter-day-today {
+    background: rgba(255, 59, 92, 0.05);
+}
+
+.jetlag-planner .shifter-date-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    background: var(--jlp-surface-light);
+    border-bottom: 1px solid var(--jlp-border);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.jetlag-planner .shifter-date {
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: var(--jlp-text);
+}
+
+.jetlag-planner .shifter-label {
+    font-size: 0.75rem;
+    color: var(--jlp-text-muted);
+    flex: 1;
+}
+
+.jetlag-planner .shifter-now-badge {
+    background: #ff3b5c;
+    color: white;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.jetlag-planner .shifter-timeline {
+    display: flex;
+    position: relative;
+    min-height: 200px;
+}
+
+.jetlag-planner .shifter-hours-left,
+.jetlag-planner .shifter-hours-right {
+    display: flex;
+    flex-direction: column;
+    width: 40px;
+    flex-shrink: 0;
+}
+
+.jetlag-planner .shifter-hour {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--jlp-text-muted);
+    padding-top: 2px;
+    min-height: 30px;
+}
+
+.jetlag-planner .shifter-hours-right .shifter-hour {
+    color: var(--jlp-text-secondary);
+}
+
+.jetlag-planner .shifter-track {
+    flex: 1;
+    position: relative;
+    background: var(--jlp-surface-light);
+    border-left: 1px solid var(--jlp-border);
+    border-right: 1px solid var(--jlp-border);
+    min-height: 200px;
+}
+
+.jetlag-planner .shifter-track::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent,
+        transparent 29px,
+        var(--jlp-border) 29px,
+        var(--jlp-border) 30px
+    );
+    pointer-events: none;
+}
+
+/* Event bars */
+.jetlag-planner .shifter-event {
+    position: absolute;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    min-width: 36px;
+    overflow: hidden;
+}
+
+.jetlag-planner .shifter-event:hover {
+    transform: scale(1.05);
+    z-index: 10;
+}
+
+.jetlag-planner .shifter-event.active {
+    box-shadow: 0 0 0 3px rgba(255, 59, 92, 0.5);
+}
+
+.jetlag-planner .shifter-event-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.jetlag-planner .shifter-event-sleep {
+    background: linear-gradient(180deg, #3b4976 0%, #2d3a5e 100%);
+}
+
+.jetlag-planner .shifter-event-nap {
+    background: linear-gradient(180deg, #6b7db3 0%, #5a6a9a 100%);
+}
+
+.jetlag-planner .shifter-event-light-seek {
+    background: linear-gradient(180deg, #f5a623 0%, #e8941e 100%);
+}
+
+.jetlag-planner .shifter-event-light-avoid {
+    background: linear-gradient(180deg, #f5a623 0%, #e8941e 100%);
+    opacity: 0.4;
+    border: 2px dashed #f5a623;
+}
+
+.jetlag-planner .shifter-event-caffeine {
+    background: linear-gradient(180deg, #8b6914 0%, #6d5210 100%);
+}
+
+.jetlag-planner .shifter-event-melatonin {
+    background: linear-gradient(180deg, #a8b4d4 0%, #8fa0c4 100%);
+}
+
+.jetlag-planner .shifter-event-flight {
+    background: linear-gradient(180deg, var(--jlp-flight) 0%, #e85a2c 100%);
+}
+
+/* Now line */
+.jetlag-planner .shifter-now-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    z-index: 15;
+    display: flex;
+    align-items: center;
+}
+
+.jetlag-planner .shifter-now-dot {
+    width: 10px;
+    height: 10px;
+    background: #ff3b5c;
+    border-radius: 50%;
+    margin-left: -5px;
+    box-shadow: 0 0 8px rgba(255, 59, 92, 0.6);
+}
+
+.jetlag-planner .shifter-now-line-bar {
+    flex: 1;
+    height: 2px;
+    background: #ff3b5c;
+}
+
+.jetlag-planner .shifter-now-time {
+    background: #ff3b5c;
+    color: white;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    white-space: nowrap;
+}
+
+/* Popup */
+.jetlag-planner .shifter-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.jetlag-planner .shifter-popup.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.jetlag-planner .shifter-popup-content {
+    position: absolute;
+    background: var(--jlp-surface-elevated);
+    border: 1px solid var(--jlp-border);
+    border-radius: var(--jlp-radius-sm);
+    padding: 1rem;
+    max-width: 280px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.jetlag-planner .shifter-popup-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.jetlag-planner .shifter-popup-icon {
+    font-size: 1.25rem;
+}
+
+.jetlag-planner .shifter-popup-title {
+    font-weight: 700;
+    font-size: 0.9375rem;
+    color: var(--jlp-text);
+}
+
+.jetlag-planner .shifter-popup-time {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--jlp-primary);
+    margin-bottom: 0.5rem;
+    white-space: pre-line;
+    line-height: 1.5;
+}
+
+.jetlag-planner .shifter-popup-desc {
+    font-size: 0.8125rem;
+    color: var(--jlp-text-secondary);
+    line-height: 1.4;
+}
+
+/* Responsive shifter */
+@media (max-width: 400px) {
+    .jetlag-planner .shifter-hours-left,
+    .jetlag-planner .shifter-hours-right {
+        width: 32px;
+    }
+
+    .jetlag-planner .shifter-hour {
+        font-size: 0.5625rem;
+    }
+
+    .jetlag-planner .shifter-event {
+        min-width: 28px;
+    }
+
+    .jetlag-planner .shifter-event-icon {
+        font-size: 0.875rem;
+    }
+}
+
+/* ============ Utilities ============ */
+
+.jetlag-planner .hidden {
+    display: none !important;
+}
+
+.jetlag-planner .saved-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--jlp-secondary);
+    background: rgba(0, 212, 170, 0.15);
+    border-radius: var(--jlp-radius-xs);
+    margin-left: auto;
+}
+
+/* ============ Animations ============ */
+
+@keyframes jlp-fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes jlp-slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
