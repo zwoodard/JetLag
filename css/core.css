@@ -51,6 +51,7 @@
     --jlp-surface: #12121f;
     --jlp-surface-light: #1a1a2d;
     --jlp-surface-elevated: #222238;
+    --jlp-popup-bg: #222238;
     --jlp-primary-glow: rgba(255, 107, 53, 0.3);
     --jlp-text: #ffffff;
     --jlp-text-secondary: #b8b8d0;
@@ -1156,7 +1157,7 @@
 
 .jetlag-planner .shifter-popup-content {
     position: absolute;
-    background: var(--jlp-surface-elevated);
+    background: var(--jlp-popup-bg, #fff);
     border: 1px solid var(--jlp-border);
     border-radius: var(--jlp-radius-sm);
     padding: 1rem;
