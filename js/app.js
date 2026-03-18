@@ -915,6 +915,11 @@ function renderShifterView(schedule, summary) {
     container.addEventListener('click', () => {
         hideShifterPopup();
     });
+
+    // Close popup on scroll so it doesn't float away from its target
+    window.addEventListener('scroll', () => {
+        hideShifterPopup();
+    }, { passive: true });
 }
 
 function renderShifterEvents(events, startHour, endHour, isToday, currentMins) {
